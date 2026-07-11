@@ -1,0 +1,6 @@
+{
+  "name": "Arena AI",
+  "description": "Un'applicazione comoda, fluida e nativa per utilizzare LMSYS Chatbot Arena (arena.ai) su Android con supporto per notifiche push e prestazioni ottimizzate.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
