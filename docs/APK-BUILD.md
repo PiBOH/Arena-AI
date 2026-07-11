@@ -89,7 +89,81 @@ L'APK di release è altamente ottimizzato, più veloce, privato dei log di debug
   `app/build/outputs/apk/release/app-release-unsigned.apk` (oppure `app-release.apk` se è già stata configurata una chiave di firma nel file Gradle).
 
 > [!NOTE]
-> **Nota importante sulla firma (Signing):** Se non hai configurato un keystore (chiave privata di firma) all'interno del file `app/build.gradle.kts`, Gradle produrrà un file contrassegnato come **unsigned** (non firmato). Gli APK non firmati vengono bloccati dal sistema operativo Android all'installazione per motivi di sicurezza. Per poterlo installare su un telefono o pubblicarlo, dovrai firmarlo usando uno strumento come `apksigner` o configurare il blocco `signingConfigs` nel build Gradle.
+> **Nota importante sulla firma (Signing):** Se non hai configurato un keystore (chiave privata di firma) all'interno del file `app/build.gradle.kts`, Gradle produrrà un file contrassegnato come **unsigned** (non firmato). Gli APK non firmati vengono bloccati dal sistema operativo Android all'installazione per motivi di sicurezza.
+> 
+> Leggi la sezione [Come Firmare l'APK](#come-firmare-it) qui sotto per le istruzioni dettagliate su come creare una chiave e firmare l'app.
+
+---
+
+<a name="come-firmare-it"></a>
+## 🔑 Come Firmare l'APK (Release)
+
+Per poter installare un APK di tipo **Release** su un dispositivo reale, questo deve essere firmato digitalmente con un certificato (Keystore). Di seguito trovi le 3 modalità principali per firmare l'applicazione.
+
+### Opzione A: Firmare tramite Android Studio (Metodo Grafico - Consigliato)
+Questo è il metodo più semplice se utilizzi Android Studio sul tuo computer:
+1. Apri il progetto in **Android Studio**.
+2. Nel menu in alto, seleziona **Build** > **Generate Signed Bundle / APK...**.
+3. Scegli **APK** e fai clic su **Next**.
+4. In **Keystore path**:
+   * Se hai già una chiave, fai clic su **Choose existing...** e selezionala.
+   * Se non hai una chiave, fai clic su **Create new...** per crearne una nuova (compila i campi richiesti come password, alias e dettagli del certificato).
+5. Inserisci le credenziali della chiave (Keystore password, Key alias, Key password) e fai clic su **Next**.
+6. Seleziona la variante di build **release**, metti la spunta su eventuali opzioni di firma proposte e fai clic su **Finish**.
+7. Troverai l'APK firmato e pronto all'installazione nella cartella di destinazione scelta (solitamente sotto `app/release/app-release.apk`).
+
+---
+
+### Opzione B: Configurare la firma automatica in Gradle
+Se vuoi che Gradle firmi l'applicazione automaticamente ogni volta che esegui `./gradlew assembleRelease`, puoi inserire le credenziali nel file Gradle.
+
+1. Crea un file di Keystore (chiamato ad esempio `my-release-key.jks`) usando lo strumento `keytool` nel tuo terminale:
+   ```bash
+   keytool -genkey -v -keystore my-release-key.jks -keyalg RSA -keysize 2048 -validity 10000 -alias my-key-alias
+   ```
+2. Sposta il file `my-release-key.jks` all'interno della cartella `app/` del tuo progetto.
+3. Apri il file `app/build.gradle.kts` e inserisci il blocco `signingConfigs` prima del blocco `buildTypes`:
+   ```kotlin
+   android {
+       ...
+       signingConfigs {
+           create("release") {
+               storeFile = file("my-release-key.jks")
+               storePassword = "LaTuaPasswordKeystore"
+               keyAlias = "my-key-alias"
+               keyPassword = "LaTuaPasswordDellaChiave"
+           }
+       }
+
+       buildTypes {
+           release {
+               isMinifyEnabled = false
+               signingConfig = signingConfigs.getByName("release") // Collega la firma alla release
+               proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+           }
+       }
+   }
+   ```
+4. Ora esegui `./gradlew assembleRelease`: l'APK finale generato in `app/build/outputs/apk/release/app-release.apk` sarà già firmato e pronto all'uso!
+
+---
+
+### Opzione C: Firmare manualmente un APK esistente tramite Riga di Comando
+Se hai già compilato l'APK non firmato (`app-release-unsigned.apk`), puoi firmarlo manualmente usando l'utility `apksigner` fornita dall'SDK Android (situata solitamente in `Android/Sdk/build-tools/<versione>/apksigner`):
+
+1. Se non hai ancora una chiave, creala con il comando `keytool` (vedi sopra).
+2. Allinea prima l'APK usando l'utility `zipalign` per ottimizzare l'uso della memoria (operazione consigliata prima della firma):
+   ```bash
+   zipalign -v -p 4 app-release-unsigned.apk app-release-aligned.apk
+   ```
+3. Firma l'APK con `apksigner`:
+   ```bash
+   apksigner sign --ks my-release-key.jks --out app-release-signed.apk app-release-aligned.apk
+   ```
+4. Puoi verificare che l'APK sia stato firmato correttamente eseguendo:
+   ```bash
+   apksigner verify app-release-signed.apk
+   ```
 
 ---
 
@@ -184,7 +258,81 @@ A release APK is optimized for performance, obfuscated, and ready for deployment
   `app/build/outputs/apk/release/app-release-unsigned.apk` (or `app-release.apk` if a signing key has been configured).
 
 > [!NOTE]
-> **Important Note on Signing:** If you have not configured a release signing key (keystore) in your `app/build.gradle.kts` file, Gradle will output an **unsigned** APK. Unsigned APKs are blocked from installation by Android's security systems. To install or distribute it, you must sign it using `apksigner` or configure a custom `signingConfigs` block in your build Gradle script.
+> **Important Note on Signing:** If you have not configured a release signing key (keystore) in your `app/build.gradle.kts` file, Gradle will output an **unsigned** APK. Unsigned APKs are blocked from installation by Android's security systems.
+> 
+> Read the [How to Sign the APK](#how-to-sign-en) section below for detailed instructions on generating a key and signing the app.
+
+---
+
+<a name="how-to-sign-en"></a>
+## 🔑 How to Sign the APK (Release)
+
+To install a **Release** APK on a physical Android device, it must be digitally signed with a certificate (Keystore). Below are the 3 main ways to sign your application.
+
+### Option A: Sign via Android Studio (Graphical Method - Recommended)
+This is the easiest method if you are using Android Studio on your computer:
+1. Open the project in **Android Studio**.
+2. From the top menu, select **Build** > **Generate Signed Bundle / APK...**.
+3. Select **APK** and click **Next**.
+4. Under **Keystore path**:
+   * If you already have a key, click **Choose existing...** and select it.
+   * If you don't have a key, click **Create new...** to create a new one (fill out the required fields such as password, alias, and certificate details).
+5. Enter your key credentials (Keystore password, Key alias, Key password) and click **Next**.
+6. Select the **release** build variant, tick any recommended signing checkboxes, and click **Finish**.
+7. You will find the signed APK ready for installation in your selected destination folder (usually under `app/release/app-release.apk`).
+
+---
+
+### Option B: Configure Automatic Signing in Gradle
+If you want Gradle to automatically sign your app every time you run `./gradlew assembleRelease`, you can configure the signing credentials directly in your build script.
+
+1. Generate a Keystore file (e.g., `my-release-key.jks`) using the `keytool` command in your terminal:
+   ```bash
+   keytool -genkey -v -keystore my-release-key.jks -keyalg RSA -keysize 2048 -validity 10000 -alias my-key-alias
+   ```
+2. Move the `my-release-key.jks` file into the `app/` folder of your project.
+3. Open `app/build.gradle.kts` and add the `signingConfigs` block before the `buildTypes` block:
+   ```kotlin
+   android {
+       ...
+       signingConfigs {
+           create("release") {
+               storeFile = file("my-release-key.jks")
+               storePassword = "YourKeystorePassword"
+               keyAlias = "my-key-alias"
+               keyPassword = "YourKeyPassword"
+           }
+       }
+
+       buildTypes {
+           release {
+               isMinifyEnabled = false
+               signingConfig = signingConfigs.getByName("release") // Apply the release signature configuration
+               proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+           }
+       }
+   }
+   ```
+4. Run `./gradlew assembleRelease`: the final APK generated at `app/build/outputs/apk/release/app-release.apk` will be fully signed and ready to use!
+
+---
+
+### Option C: Manually Sign an Existing APK via Command Line
+If you have already built the unsigned release APK (`app-release-unsigned.apk`), you can manually sign it using the `apksigner` tool provided by the Android SDK (usually located at `Android/Sdk/build-tools/<version>/apksigner`):
+
+1. If you don't have a key yet, generate one with `keytool` (see above).
+2. Align the APK first using `zipalign` to optimize RAM usage (recommended before signing):
+   ```bash
+   zipalign -v -p 4 app-release-unsigned.apk app-release-aligned.apk
+   ```
+3. Sign the APK with `apksigner`:
+   ```bash
+   apksigner sign --ks my-release-key.jks --out app-release-signed.apk app-release-aligned.apk
+   ```
+4. Verify the signature by running:
+   ```bash
+   apksigner verify app-release-signed.apk
+   ```
 
 ---
 
