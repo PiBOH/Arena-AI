@@ -30,6 +30,13 @@ import androidx.activity.compose.setContent
 import android.app.DownloadManager
 import android.webkit.URLUtil
 import android.os.Environment
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import androidx.core.app.NotificationCompat
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
 import android.content.ContextWrapper
 import android.app.Activity
 import androidx.activity.enableEdgeToEdge
@@ -356,6 +363,160 @@ class WebAppInterface(
         }
     }
 }
+
+private fun trackDownloadProgress(context: Context, dm: DownloadManager, downloadId: Long, fileName: String) {
+        val query = DownloadManager.Query().setFilterById(downloadId)
+        var lastDownloadedBytes = 0L
+        var lastQueryTime = System.currentTimeMillis()
+
+        CoroutineScope(Dispatchers.IO).launch {
+            var downloading = true
+            val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            
+            // Create a low priority channel for active updates so it doesn't beep every second
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                val channel = NotificationChannel(
+                    "downloads_channel",
+                    "Downloads",
+                    NotificationManager.IMPORTANCE_LOW
+                ).apply {
+                    description = "Download progress and completion notifications"
+                }
+                notificationManager.createNotificationChannel(channel)
+            }
+
+            val notificationId = (downloadId % Int.MAX_VALUE).toInt()
+
+            while (downloading) {
+                delay(1000)
+                val cursor = dm.query(query)
+                if (cursor != null && cursor.moveToFirst()) {
+                    val statusIndex = cursor.getColumnIndex(DownloadManager.COLUMN_STATUS)
+                    val bytesDownloadedIndex = cursor.getColumnIndex(DownloadManager.COLUMN_BYTES_DOWNLOADED_SO_FAR)
+                    val bytesTotalIndex = cursor.getColumnIndex(DownloadManager.COLUMN_TOTAL_SIZE_BYTES)
+                    
+                    if (statusIndex != -1 && bytesDownloadedIndex != -1 && bytesTotalIndex != -1) {
+                        val status = cursor.getInt(statusIndex)
+                        val bytesDownloaded = cursor.getLong(bytesDownloadedIndex)
+                        val bytesTotal = cursor.getLong(bytesTotalIndex)
+                        
+                        val currentTime = System.currentTimeMillis()
+                        val timeDeltaMs = currentTime - lastQueryTime
+                        
+                        var speedText = ""
+                        var timeLeftText = ""
+                        
+                        if (timeDeltaMs > 0) {
+                            val bytesDelta = bytesDownloaded - lastDownloadedBytes
+                            // speed in bytes/sec
+                            val speed = (bytesDelta * 1000.0) / timeDeltaMs
+                            speedText = formatSpeed(speed)
+                            
+                            if (speed > 0 && bytesTotal > 0) {
+                                val remainingBytes = bytesTotal - bytesDownloaded
+                                val remainingSeconds = (remainingBytes / speed).toLong()
+                                timeLeftText = formatTimeRemaining(remainingSeconds)
+                            }
+                        }
+                        
+                        lastDownloadedBytes = bytesDownloaded
+                        lastQueryTime = currentTime
+
+                        when (status) {
+                            DownloadManager.STATUS_RUNNING -> {
+                                val progress = if (bytesTotal > 0) {
+                                    (bytesDownloaded * 100 / bytesTotal).toInt()
+                                } else {
+                                    0
+                                }
+                                
+                                val contentText = buildString {
+                                    append("$progress%")
+                                    if (speedText.isNotEmpty()) append(" • $speedText")
+                                    if (timeLeftText.isNotEmpty()) append(" • $timeLeftText remaining")
+                                }
+
+                                val builder = NotificationCompat.Builder(context, "downloads_channel")
+                                    .setSmallIcon(android.R.drawable.stat_sys_download)
+                                    .setContentTitle(fileName)
+                                    .setContentText(contentText)
+                                    .setPriority(NotificationCompat.PRIORITY_LOW)
+                                    .setOnlyAlertOnce(true)
+                                    .setProgress(100, progress, bytesTotal <= 0)
+                                    .setOngoing(true)
+                                
+                                notificationManager.notify(notificationId, builder.build())
+                            }
+                            DownloadManager.STATUS_SUCCESSFUL -> {
+                                downloading = false
+                                val builder = NotificationCompat.Builder(context, "downloads_channel")
+                                    .setSmallIcon(android.R.drawable.stat_sys_download_done)
+                                    .setContentTitle("Download completed")
+                                    .setContentText(fileName)
+                                    .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+                                    .setProgress(0, 0, false)
+                                    .setOngoing(false)
+                                    .setAutoCancel(true)
+                                notificationManager.notify(notificationId, builder.build())
+                                
+                                withContext(Dispatchers.Main) {
+                                    Toast.makeText(context, "Download completed: $fileName", Toast.LENGTH_LONG).show()
+                                }
+                            }
+                            DownloadManager.STATUS_FAILED -> {
+                                downloading = false
+                                val builder = NotificationCompat.Builder(context, "downloads_channel")
+                                    .setSmallIcon(android.R.drawable.stat_notify_error)
+                                    .setContentTitle("Download failed")
+                                    .setContentText(fileName)
+                                    .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+                                    .setProgress(0, 0, false)
+                                    .setOngoing(false)
+                                    .setAutoCancel(true)
+                                notificationManager.notify(notificationId, builder.build())
+                                
+                                withContext(Dispatchers.Main) {
+                                    Toast.makeText(context, "Download failed: $fileName", Toast.LENGTH_LONG).show()
+                                }
+                            }
+                            DownloadManager.STATUS_PAUSED -> {
+                                val builder = NotificationCompat.Builder(context, "downloads_channel")
+                                    .setSmallIcon(android.R.drawable.stat_sys_download)
+                                    .setContentTitle("Download paused")
+                                    .setContentText(fileName)
+                                    .setPriority(NotificationCompat.PRIORITY_LOW)
+                                    .setOngoing(true)
+                                notificationManager.notify(notificationId, builder.build())
+                            }
+                        }
+                    }
+                } else {
+                    downloading = false
+                }
+                cursor?.close()
+            }
+        }
+    }
+
+    private fun formatSpeed(speedBytesPerSec: Double): String {
+        return when {
+            speedBytesPerSec >= 1024 * 1024 -> String.format("%.1f MB/s", speedBytesPerSec / (1024 * 1024))
+            speedBytesPerSec >= 1024 -> String.format("%.1f KB/s", speedBytesPerSec / 1024)
+            else -> String.format("%.0f B/s", speedBytesPerSec)
+        }
+    }
+
+    private fun formatTimeRemaining(seconds: Long): String {
+        if (seconds <= 0) return "0s"
+        val h = seconds / 3600
+        val m = (seconds % 3600) / 60
+        val s = seconds % 60
+        return when {
+            h > 0 -> String.format("%dh %dm", h, m)
+            m > 0 -> String.format("%dm %ds", m, s)
+            else -> String.format("%ds", s)
+        }
+    }
 
 private fun injectCustomMenuJavascript(webView: WebView?) {
     webView?.evaluateJavascript(
@@ -709,23 +870,25 @@ fun WebViewContainer(
                 }
 
                 setDownloadListener { downloadUrl, userAgentString, contentDisposition, mimetype, contentLength ->
+                    val fileName = URLUtil.guessFileName(downloadUrl, contentDisposition, mimetype)
                     try {
                         val request = DownloadManager.Request(Uri.parse(downloadUrl)).apply {
                             setMimeType(mimetype)
                             val cookies = CookieManager.getInstance().getCookie(downloadUrl)
                             addRequestHeader("cookie", cookies)
                             addRequestHeader("User-Agent", userAgentString)
-                            setDescription("Downloading file...")
-                            setTitle(URLUtil.guessFileName(downloadUrl, contentDisposition, mimetype))
-                            setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
+                            setDescription("Downloading: $fileName")
+                            setTitle(fileName)
+                            setNotificationVisibility(DownloadManager.Request.VISIBILITY_HIDDEN)
                             setDestinationInExternalPublicDir(
                                 Environment.DIRECTORY_DOWNLOADS,
-                                URLUtil.guessFileName(downloadUrl, contentDisposition, mimetype)
+                                fileName
                             )
                         }
                         val dm = ctx.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
-                        dm.enqueue(request)
-                        Toast.makeText(ctx, "Download started...", Toast.LENGTH_SHORT).show()
+                        val downloadId = dm.enqueue(request)
+                        Toast.makeText(ctx, "Download started: $fileName", Toast.LENGTH_SHORT).show()
+                        trackDownloadProgress(ctx, dm, downloadId, fileName)
                     } catch (e: Exception) {
                         // Fallback: Open in external browser
                         try {

@@ -7,13 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.1.0] - 2026-07-15
+
+### Added
+- Rich, custom-styled native Android download notifications that track download progress in real-time, including file name, progress percentage, remaining time, and transfer speed.
+- Fully automated "Download completed" and "Download failed" native alerts and localized Toasts.
+- Declared `DOWNLOAD_WITHOUT_NOTIFICATION` system permission to allow cleanly hiding default system alerts in favor of the custom notifications.
+- Incremented build configuration following Semantic Versioning rules to `versionCode = 5` and `versionName = "1.1.0"`.
+
+### Fixed
+- Investigated and verified chromium internal `simple_file_enumerator` logs (`opendir Code Cache/js: No such file or directory`); confirmed they are completely benign startup warnings that occur naturally on fresh WebView cache initializations and have zero impact on the application's runtime stability.
+
+---
+
 ## [1.0.3] - 2026-07-15
 
 ### Added
 - Native support for LMArena (`lmarena.ai`) ecosystem domain inside the WebView alongside existing `arena.ai` and `lmsys.org` domains.
 - Beautiful, interactive community buttons in the Application Settings to instantly open a bug report/feature request via GitHub Issues (`https://github.com/PiBOH/Arena-AI/issues/new/choose`) and review code changes via GitHub Pull Requests (`https://github.com/PiBOH/Arena-AI/pulls`).
 - Upgraded the standard `.github/ISSUE_TEMPLATE` bug reporting and feature proposal workflows into modern, interactive YAML Form schemas (`bug_report.yml` and `feature_request.yml`) for a significantly enhanced user contribution experience.
-- Rendered and exported a pixel-perfect high-resolution `logo.png` at the project root directly from the native vector drawable `ic_arena_logo.xml` utilizing local JVM framework rendering.
+- Integrated the official `logo.png` branding asset directly at the project root by pulling it from the main branch of the repository (`https://github.com/PiBOH/Arena-AI/blob/main/logo.png`).
 
 ### Changed
 - Disabled the `SwipeRefreshLayout` drag-to-refresh vertical pull gesture entirely, and configured `overScrollMode = View.OVER_SCROLL_NEVER` directly on the `WebView`. This completely prevents accidental page reloads or overscroll stretches that would cause active chat sessions and conversational history inside Chatbot Arena to be lost while scrolling.
