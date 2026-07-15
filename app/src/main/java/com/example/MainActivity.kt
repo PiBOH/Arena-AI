@@ -176,6 +176,23 @@ class MainActivity : ComponentActivity() {
                 // Check and handle deep linking URLs from notifications on app launch
                 val initialUrl = intent?.getStringExtra(MyFirebaseMessagingService.EXTRA_URL) ?: targetUrl
 
+                // Warn user if notification permission is not granted on app startup
+                LaunchedEffect(Unit) {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        val isGranted = ContextCompat.checkSelfPermission(
+                            this@MainActivity,
+                            Manifest.permission.POST_NOTIFICATIONS
+                        ) == PackageManager.PERMISSION_GRANTED
+                        if (!isGranted) {
+                            Toast.makeText(
+                                this@MainActivity,
+                                "Warning: Notification permission is not granted! You won't be able to monitor download progress.",
+                                Toast.LENGTH_LONG
+                            ).show()
+                        }
+                    }
+                }
+
                 // Back Button Interceptor
                 BackHandler {
                     val web = webView
@@ -871,6 +888,24 @@ fun WebViewContainer(
 
                 setDownloadListener { downloadUrl, userAgentString, contentDisposition, mimetype, contentLength ->
                     val fileName = URLUtil.guessFileName(downloadUrl, contentDisposition, mimetype)
+                    
+                    // Warn user if notification permission is not granted so they know they won't see progress notifications
+                    val hasNotif = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        ContextCompat.checkSelfPermission(
+                            ctx,
+                            Manifest.permission.POST_NOTIFICATIONS
+                        ) == PackageManager.PERMISSION_GRANTED
+                    } else {
+                        true
+                    }
+                    if (!hasNotif) {
+                        Toast.makeText(
+                            ctx,
+                            "Warning: Notification permission is not granted! You won't be able to monitor this download's progress.",
+                            Toast.LENGTH_LONG
+                        ).show()
+                    }
+
                     try {
                         val request = DownloadManager.Request(Uri.parse(downloadUrl)).apply {
                             setMimeType(mimetype)
