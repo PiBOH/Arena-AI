@@ -55,6 +55,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -148,12 +149,16 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
-        // Pre-create the WebView wasm cache directory to prevent chromium logs warnings/errors
+        // Pre-create and clear WebView Code Cache directories to resolve Chromium simple_file_enumerator errors
         try {
-            val wasmCacheDir = java.io.File(cacheDir, "WebView/Default/HTTP Cache/Code Cache/wasm")
-            if (!wasmCacheDir.exists()) {
-                wasmCacheDir.mkdirs()
+            val codeCacheDir = java.io.File(cacheDir, "WebView/Default/HTTP Cache/Code Cache")
+            if (codeCacheDir.exists()) {
+                codeCacheDir.deleteRecursively()
             }
+            val wasmCacheDir = java.io.File(codeCacheDir, "wasm")
+            wasmCacheDir.mkdirs()
+            val jsCacheDir = java.io.File(codeCacheDir, "js")
+            jsCacheDir.mkdirs()
         } catch (e: Exception) {
             e.printStackTrace()
         }
@@ -219,6 +224,7 @@ class MainActivity : ComponentActivity() {
                         modifier = Modifier
                             .fillMaxSize()
                             .padding(innerPadding)
+                            .imePadding()
                             .background(Color(0xFF0F172A)) // Slate 900
                     ) {
                         // Check Online/Offline state
@@ -595,6 +601,103 @@ private fun injectCustomMenuJavascript(webView: WebView?) {
     webView?.evaluateJavascript(
         """
         (function() {
+            // 1. Inject custom styles to make sure three-dots options/menu buttons are visible and tappable on mobile
+            try {
+                const styleId = 'android-three-dots-patch';
+                if (!document.getElementById(styleId)) {
+                    const style = document.createElement('style');
+                    style.id = styleId;
+                    style.innerHTML = `
+                        /* Remove hover restrictions on chat list menus/three dots inside Gradio or sidebars */
+                        div[class*="history"] button,
+                        div[class*="sidebar"] button,
+                        [class*="history-item"] button,
+                        [class*="sidebar-item"] button,
+                        .chat-menu-button,
+                        .options-button,
+                        .menu-button,
+                        .dots-button,
+                        [class*="menu-btn"],
+                        [class*="options-btn"],
+                        [class*="dots-btn"],
+                        button[aria-label*="menu" i],
+                        button[aria-label*="option" i],
+                        button[aria-label*="more" i],
+                        button[id*="menu" i],
+                        /* Support SVG-only options buttons */
+                        button:has(svg):hover,
+                        button:has(svg) {
+                            /* Ensure button is visible without hover on touch screens */
+                            opacity: 1 !important;
+                            visibility: visible !important;
+                            display: inline-flex !important;
+                            align-items: center !important;
+                            justify-content: center !important;
+                            /* Make easily clickable */
+                            min-width: 40px !important;
+                            min-height: 40px !important;
+                            z-index: 1000 !important;
+                            pointer-events: auto !important;
+                        }
+
+                        /* Ensure containers do not clip popup menus or the three-dots buttons */
+                        div[class*="history-item"],
+                        div[class*="sidebar-item"],
+                        [class*="chat-row"],
+                        [class*="chat-item"] {
+                            overflow: visible !important;
+                            position: relative !important;
+                        }
+                    `;
+                    document.head.appendChild(style);
+                }
+            } catch (styleErr) {
+                console.error("Android Stylesheet Patch Error: ", styleErr);
+            }
+
+            // 2. Stop event propagation on three-dots buttons so clicking them doesn't select/switch the chat row
+            function optimizeThreeDots() {
+                try {
+                    const selectors = 'button, [role="button"], .menu-btn, .options-btn, [class*="menu-button"], [class*="options-button"], [class*="dots-button"]';
+                    const buttons = document.querySelectorAll(selectors);
+                    buttons.forEach(btn => {
+                        const html = btn.innerHTML || '';
+                        const ariaLabel = (btn.getAttribute('aria-label') || '').toLowerCase();
+                        const className = (btn.className || '').toLowerCase();
+                        
+                        const isThreeDots = html.includes('svg') || 
+                                            html.includes('⋮') || 
+                                            html.includes('...') || 
+                                            className.includes('menu') || 
+                                            className.includes('option') || 
+                                            className.includes('dots') ||
+                                            ariaLabel.includes('menu') || 
+                                            ariaLabel.includes('option') || 
+                                            ariaLabel.includes('more');
+                                            
+                        if (isThreeDots) {
+                            // Boost tap reliability
+                            btn.style.opacity = '1';
+                            btn.style.visibility = 'visible';
+                            btn.style.pointerEvents = 'auto';
+                            
+                            if (!btn.dataset.threeDotsOptimized) {
+                                const stopEvent = (e) => {
+                                    // Prevent event bubbling to parent chat row (which selects/resets the active conversation)
+                                    e.stopPropagation();
+                                };
+                                ['click', 'touchstart', 'touchend', 'mousedown', 'mouseup'].forEach(evt => {
+                                    btn.addEventListener(evt, stopEvent, { capture: true });
+                                });
+                                btn.dataset.threeDotsOptimized = 'true';
+                            }
+                        }
+                    });
+                } catch (e) {
+                    console.error("Three Dots Optimization Error: ", e);
+                }
+            }
+
             function injectCustomTabs() {
                 try {
                     if (document.getElementById('android-app-options-wrapper')) {
@@ -772,14 +875,16 @@ private fun injectCustomMenuJavascript(webView: WebView?) {
                 }
             }
 
+            // Initial execution
             injectCustomTabs();
+            optimizeThreeDots();
 
-            // Set up a debounced MutationObserver instead of polling to save 100% of idle CPU/battery
+            // MutationObserver to track active changes & preserve optimization states on loaded content
             let throttleTimeout = null;
             const observer = new MutationObserver(function(mutations) {
-                if (document.getElementById('android-app-options-wrapper')) {
-                    return;
-                }
+                // Always optimize three-dots even if custom tab menu is already present
+                optimizeThreeDots();
+                
                 if (throttleTimeout) return;
                 
                 throttleTimeout = setTimeout(function() {
@@ -787,7 +892,7 @@ private fun injectCustomMenuJavascript(webView: WebView?) {
                     if (!document.getElementById('android-app-options-wrapper')) {
                         injectCustomTabs();
                     }
-                }, 4000);
+                }, 2000); // 2s response latency for heavy dynamic layouts
             });
 
             observer.observe(document.body, {
