@@ -564,6 +564,7 @@ fun WebViewContainer(
             val swipeRefreshLayout = SwipeRefreshLayout(ctx).apply {
                 setColorSchemeColors(android.graphics.Color.parseColor("#38BDF8"))
                 setProgressBackgroundColorSchemeColor(android.graphics.Color.parseColor("#1E293B"))
+                isEnabled = false // Disable drag-to-refresh gesture to prevent losing active chat sessions on accidental swipes
             }
 
             val webView = WebView(ctx).apply {

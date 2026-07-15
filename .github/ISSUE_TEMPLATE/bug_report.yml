@@ -1,0 +1,110 @@
+name: "🐛 Bug Report / Segnalazione Bug"
+description: Report a bug or unexpected behavior in Arena AI / Segnala un problema o comportamento inatteso
+title: "[BUG]: "
+labels: ["bug"]
+assignees: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Grazie per voler segnalare un bug! Ti preghiamo di compilare i campi sottostanti nel modo più dettagliato possibile.
+        *Thank you for reporting a bug! Please fill in the fields below as detailed as possible.*
+  - type: textarea
+    id: description
+    attributes:
+      label: "🐛 Bug Description / Descrizione del Bug"
+      description: |
+        A clear and concise description of what the bug is.
+        *Una descrizione chiara e concisa del problema riscontrato.*
+      placeholder: |
+        e.g. L'applicazione si blocca quando accedo...
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: "🎬 Steps to Reproduce / Passi per Riprodurre il Problema"
+      description: |
+        What steps did you take to encounter the issue?
+        *Quali passaggi hai seguito per riscontrare il problema?*
+      placeholder: |
+        1. Apri l'app
+        2. Vai su...
+        3. Fai swipe o clicca su...
+        4. Vedi l'errore
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: "🎯 Expected Behavior / Comportamento Atteso"
+      description: |
+        What did you expect to happen?
+        *Cosa sarebbe dovuto succedere in una situazione normale.*
+      placeholder: |
+        L'app avrebbe dovuto completare l'accesso...
+    validations:
+      required: true
+  - type: input
+    id: device
+    attributes:
+      label: "📱 Device / Smartphone"
+      description: |
+        What device are you using?
+        *Che dispositivo stai usando?*
+      placeholder: "e.g. Google Pixel 8, Samsung Galaxy S23, Xiaomi 14"
+    validations:
+      required: true
+  - type: input
+    id: android_version
+    attributes:
+      label: "🤖 Android Version / Versione di Android"
+      description: |
+        What Android version is installed on your device?
+        *Quale versione di Android è installata sul dispositivo?*
+      placeholder: "e.g. Android 14, Android 13, HyperOS"
+    validations:
+      required: true
+  - type: dropdown
+    id: app_version
+    attributes:
+      label: "📦 App Version / Versione dell'App"
+      description: |
+        Select the app version where the bug occurs.
+        *Seleziona la versione dell'app in cui si verifica il bug.*
+      options:
+        - "1.0.3"
+        - "1.0.2"
+        - "1.0.1"
+        - "Older / Precedente"
+        - "Self-built / Compilata autonomamente"
+    validations:
+      required: true
+  - type: dropdown
+    id: install_source
+    attributes:
+      label: "📥 Installation Source / Origine Installazione"
+      description: |
+        Where did you install the app from?
+        *Da dove hai installato l'app?*
+      options:
+        - "GitHub Release APK"
+        - "AI Studio / Emulator"
+        - "Self-compiled from Source"
+        - "Other / Altro"
+    validations:
+      required: true
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: "📸 Screenshots / Schermate"
+      description: |
+        Drag and drop images or paste links here.
+        *Trascina e rilascia immagini o incolla link qui per facilitare la comprensione.*
+  - type: textarea
+    id: context
+    attributes:
+      label: "🛠️ Additional Context / Contesto Aggiuntivo"
+      description: |
+        Any other helpful information (logs, custom settings, environment details, etc.).
+        *Qualsiasi altra informazione utile.*

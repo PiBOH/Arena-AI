@@ -1,0 +1,55 @@
+name: "✨ Feature Request / Proposta Funzionalità"
+description: Suggest an idea or improvement for Arena AI / Suggerisci un'idea o miglioramento
+title: "[FEATURE]: "
+labels: ["enhancement"]
+assignees: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Hai un'idea per rendere Arena AI migliore? Condividila con noi compilando questo modulo!
+        *Have an idea to make Arena AI better? Share it with us by filling out this form!*
+  - type: textarea
+    id: proposal
+    attributes:
+      label: "💡 Feature Proposal / Proposta di Funzionalità"
+      description: |
+        Is your feature request related to a problem? Please describe.
+        *La tua proposta è legata a un problema specifico? Descrivilo qui.*
+      placeholder: "e.g. Sarebbe comodo poter selezionare rapidamente..."
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: "🚀 Desired Solution / Soluzione Desiderata"
+      description: |
+        A clear and concise description of what you want to happen or see in the app.
+        *Una descrizione chiara e concisa di come vorresti che funzionasse la nuova caratteristica.*
+      placeholder: "e.g. Vorrei che ci fosse un pulsante per..."
+    validations:
+      required: true
+  - type: textarea
+    id: design
+    attributes:
+      label: "🎨 Design or Flow Mockups / Bozzetti o Idee di Design"
+      description: |
+        If applicable, describe how you imagine the UI layout, components, or screens.
+        *Se possibile, descrivi come immagini l'interfaccia utente o il flusso delle schermate.*
+  - type: textarea
+    id: usecase
+    attributes:
+      label: "👥 Use Case / Caso d'Uso"
+      description: |
+        Explain why this feature would be useful to you and other users.
+        *Spiega perché questa funzionalità sarebbe utile per te e per gli altri utenti.*
+      placeholder: "e.g. Questo aiuterebbe gli utenti che vogliono salvare..."
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: "🛠️ Additional Context / Contesto Aggiuntivo"
+      description: |
+        Add any other context, screenshots, or references here.
+        *Aggiungi qualsiasi altro contesto, screenshot o riferimento qui.*
