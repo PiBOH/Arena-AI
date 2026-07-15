@@ -158,6 +158,9 @@ class MainActivity : ComponentActivity() {
             e.printStackTrace()
         }
 
+        // Initialize connection state correctly on startup
+        isOnline.value = isHasNetworkConnection(this)
+
         // Monitor Network Connectivity
         registerNetworkCallback()
 
@@ -317,16 +320,32 @@ class MainActivity : ComponentActivity() {
 
     private fun registerNetworkCallback() {
         val connectivityManager = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-        val builder = NetworkRequest.Builder()
-        connectivityManager.registerNetworkCallback(builder.build(), object : ConnectivityManager.NetworkCallback() {
-            override fun onAvailable(network: Network) {
-                runOnUiThread { isOnline.value = true }
-            }
+        try {
+            connectivityManager.registerDefaultNetworkCallback(object : ConnectivityManager.NetworkCallback() {
+                override fun onAvailable(network: Network) {
+                    runOnUiThread { isOnline.value = true }
+                }
 
-            override fun onLost(network: Network) {
-                runOnUiThread { isOnline.value = false }
-            }
-        })
+                override fun onLost(network: Network) {
+                    // Re-verify network status to prevent false-positives during network handover
+                    val hasConn = isHasNetworkConnection(this@MainActivity)
+                    runOnUiThread { isOnline.value = hasConn }
+                }
+            })
+        } catch (e: Exception) {
+            val builder = NetworkRequest.Builder()
+                .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+            connectivityManager.registerNetworkCallback(builder.build(), object : ConnectivityManager.NetworkCallback() {
+                override fun onAvailable(network: Network) {
+                    runOnUiThread { isOnline.value = true }
+                }
+
+                override fun onLost(network: Network) {
+                    val hasConn = isHasNetworkConnection(this@MainActivity)
+                    runOnUiThread { isOnline.value = hasConn }
+                }
+            })
+        }
     }
 
     private fun isHasNetworkConnection(context: Context): Boolean {
@@ -385,6 +404,10 @@ private fun trackDownloadProgress(context: Context, dm: DownloadManager, downloa
         val query = DownloadManager.Query().setFilterById(downloadId)
         var lastDownloadedBytes = 0L
         var lastQueryTime = System.currentTimeMillis()
+        
+        // Battery optimization: Keep track of previous state to avoid redundant notification redraws
+        var lastProgress = -1
+        var lastContentText = ""
 
         CoroutineScope(Dispatchers.IO).launch {
             var downloading = true
@@ -403,9 +426,10 @@ private fun trackDownloadProgress(context: Context, dm: DownloadManager, downloa
             }
 
             val notificationId = (downloadId % Int.MAX_VALUE).toInt()
+            var currentDelay = 3000L // Start with 3 seconds to reduce polling frequency
 
             while (downloading) {
-                delay(1000)
+                delay(currentDelay)
                 val cursor = dm.query(query)
                 if (cursor != null && cursor.moveToFirst()) {
                     val statusIndex = cursor.getColumnIndex(DownloadManager.COLUMN_STATUS)
@@ -441,6 +465,7 @@ private fun trackDownloadProgress(context: Context, dm: DownloadManager, downloa
 
                         when (status) {
                             DownloadManager.STATUS_RUNNING -> {
+                                currentDelay = 3000L // Active download: poll every 3 seconds to preserve battery
                                 val progress = if (bytesTotal > 0) {
                                     (bytesDownloaded * 100 / bytesTotal).toInt()
                                 } else {
@@ -448,21 +473,31 @@ private fun trackDownloadProgress(context: Context, dm: DownloadManager, downloa
                                 }
                                 
                                 val contentText = buildString {
-                                    append("$progress%")
+                                    if (bytesTotal > 0) {
+                                        append("$progress% (${formatSize(bytesDownloaded)} / ${formatSize(bytesTotal)})")
+                                    } else {
+                                        append("Downloaded: ${formatSize(bytesDownloaded)}")
+                                    }
                                     if (speedText.isNotEmpty()) append(" • $speedText")
                                     if (timeLeftText.isNotEmpty()) append(" • $timeLeftText remaining")
                                 }
 
-                                val builder = NotificationCompat.Builder(context, "downloads_channel")
-                                    .setSmallIcon(android.R.drawable.stat_sys_download)
-                                    .setContentTitle(fileName)
-                                    .setContentText(contentText)
-                                    .setPriority(NotificationCompat.PRIORITY_LOW)
-                                    .setOnlyAlertOnce(true)
-                                    .setProgress(100, progress, bytesTotal <= 0)
-                                    .setOngoing(true)
-                                
-                                notificationManager.notify(notificationId, builder.build())
+                                // Battery optimization: only send update to the system if something actually changed
+                                if (progress != lastProgress || contentText != lastContentText) {
+                                    lastProgress = progress
+                                    lastContentText = contentText
+
+                                    val builder = NotificationCompat.Builder(context, "downloads_channel")
+                                        .setSmallIcon(android.R.drawable.stat_sys_download)
+                                        .setContentTitle(fileName)
+                                        .setContentText(contentText)
+                                        .setPriority(NotificationCompat.PRIORITY_LOW)
+                                        .setOnlyAlertOnce(true)
+                                        .setProgress(100, progress, bytesTotal <= 0)
+                                        .setOngoing(true)
+                                    
+                                    notificationManager.notify(notificationId, builder.build())
+                                }
                             }
                             DownloadManager.STATUS_SUCCESSFUL -> {
                                 downloading = false
@@ -497,13 +532,21 @@ private fun trackDownloadProgress(context: Context, dm: DownloadManager, downloa
                                 }
                             }
                             DownloadManager.STATUS_PAUSED -> {
-                                val builder = NotificationCompat.Builder(context, "downloads_channel")
-                                    .setSmallIcon(android.R.drawable.stat_sys_download)
-                                    .setContentTitle("Download paused")
-                                    .setContentText(fileName)
-                                    .setPriority(NotificationCompat.PRIORITY_LOW)
-                                    .setOngoing(true)
-                                notificationManager.notify(notificationId, builder.build())
+                                currentDelay = 6000L // Paused: poll every 6 seconds to avoid useless wakeups
+                                val contentText = "Paused"
+                                if (lastContentText != contentText) {
+                                    lastContentText = contentText
+                                    val builder = NotificationCompat.Builder(context, "downloads_channel")
+                                        .setSmallIcon(android.R.drawable.stat_sys_download)
+                                        .setContentTitle("Download paused")
+                                        .setContentText(fileName)
+                                        .setPriority(NotificationCompat.PRIORITY_LOW)
+                                        .setOngoing(true)
+                                    notificationManager.notify(notificationId, builder.build())
+                                }
+                            }
+                            else -> {
+                                currentDelay = 5000L // Other states (pending, etc.): poll every 5 seconds
                             }
                         }
                     }
@@ -535,12 +578,28 @@ private fun trackDownloadProgress(context: Context, dm: DownloadManager, downloa
         }
     }
 
+private fun formatSize(bytes: Long): String {
+    if (bytes <= 0) return "0 B"
+    val kb = bytes / 1024.0
+    val mb = kb / 1024.0
+    val gb = mb / 1024.0
+    return when {
+        gb >= 1.0 -> String.format("%.2f GB", gb)
+        mb >= 1.0 -> String.format("%.2f MB", mb)
+        kb >= 1.0 -> String.format("%.2f KB", kb)
+        else -> "$bytes B"
+    }
+}
+
 private fun injectCustomMenuJavascript(webView: WebView?) {
     webView?.evaluateJavascript(
         """
         (function() {
             function injectCustomTabs() {
                 try {
+                    if (document.getElementById('android-app-options-wrapper')) {
+                        return;
+                    }
                     // Define targets to locate the menu/sidebar area
                     const targetTexts = ['new chat', 'leaderboard', 'search', 'arena (battle)'];
                     let refBtn = null;
@@ -714,9 +773,29 @@ private fun injectCustomMenuJavascript(webView: WebView?) {
             }
 
             injectCustomTabs();
-            if (!window.androidTabsInterval) {
-                window.androidTabsInterval = setInterval(injectCustomTabs, 1000);
-            }
+
+            // Set up a debounced MutationObserver instead of polling to save 100% of idle CPU/battery
+            let throttleTimeout = null;
+            const observer = new MutationObserver(function(mutations) {
+                if (document.getElementById('android-app-options-wrapper')) {
+                    return;
+                }
+                if (throttleTimeout) return;
+                
+                throttleTimeout = setTimeout(function() {
+                    throttleTimeout = null;
+                    if (!document.getElementById('android-app-options-wrapper')) {
+                        injectCustomTabs();
+                    }
+                }, 4000);
+            });
+
+            observer.observe(document.body, {
+                childList: true,
+                subtree: true
+            });
+            
+            window.androidMenuObserver = observer;
         })();
         """.trimIndent(),
         null
@@ -941,9 +1020,6 @@ fun WebViewContainer(
                     override fun onProgressChanged(view: WebView?, newProgress: Int) {
                         super.onProgressChanged(view, newProgress)
                         onProgressChanged(newProgress)
-                        if (newProgress > 50) {
-                            injectCustomMenuJavascript(view)
-                        }
                     }
 
                     override fun onShowFileChooser(
@@ -987,10 +1063,10 @@ fun WebViewContainer(
         update = { swipeRefreshLayout ->
             val web = swipeRefreshLayout.getChildAt(0) as? WebView
             web?.let { w ->
-                w.setLayerType(
-                    if (isHardwareAccelerated) View.LAYER_TYPE_HARDWARE else View.LAYER_TYPE_SOFTWARE,
-                    null
-                )
+                val targetLayerType = if (isHardwareAccelerated) View.LAYER_TYPE_HARDWARE else View.LAYER_TYPE_SOFTWARE
+                if (w.layerType != targetLayerType) {
+                    w.setLayerType(targetLayerType, null)
+                }
             }
         }
     )

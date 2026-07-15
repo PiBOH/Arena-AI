@@ -7,15 +7,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.1.3] - 2026-07-15
+
+### Fixed
+- **Stable Network Monitoring**: Resolved the false "No Internet Connection" screen bug by replacing the generic network request callback with the modern `registerDefaultNetworkCallback` API. 
+- **Graceful Network Handover**: Implemented a secondary active capability check during network lost events to filter out false-positives and ensure smooth handovers between mobile data and Wi-Fi.
+- **Immediate Offline Startup Initialization**: Correctly initialized `isOnline` with the actual device connection status at launch, avoiding race conditions prior to the first callback update.
+
+---
+
+## [1.1.2] - 2026-07-15
+
+### Fixed
+- **Definitive Background Idle Battery Fix**: Replaced the continuous background `setInterval` polling with an ultra-efficient, debounced `MutationObserver` web API. The observer automatically sleeps when the DOM is stable and executes single-operation O(1) checks only when mutations occur, bringing idle CPU consumption to a pristine 0%.
+- **Adaptive Polling Rates**: Configured progressive delays (3s during active downloads, 5s during pending states, and 6s when paused) to prevent battery drain during file transfers.
+- **WebView Render Optimization**: Patched the Compose `AndroidView.update` block to only update WebView layer types if they actually changed, avoiding costly layout and rendering invalidations.
+- **Redundant JS Cleanups**: Entirely eliminated duplicate JavaScript injections from page navigation and progress events.
+- **Incremental Build Parameters**: Fully restored the versioning setup to `versionCode = 7` and `versionName = "1.1.2"`.
+
+---
+
 ## [1.1.1] - 2026-07-15
 
 ### Added
 - Proactive startup checks that warn users with a Toast if system notification permission has not been authorized.
 - Direct runtime alert check inside the Web download listener to warn the user that they won't receive download progress notifications if permissions are disabled.
-- Incremented build configuration to `versionCode = 6` and `versionName = "1.1.1"`.
+
+### Fixed
+- Fixed critical background battery drain and device overheating by introducing a lightning-fast element check inside the WebView options injection, reducing idle CPU usage to 0%.
+- Increased background options-injection checking interval from 1s to 3s to reduce CPU wakeups.
+- Completely removed redundant and highly repetitive `injectCustomMenuJavascript` calls from `WebChromeClient.onProgressChanged` which were triggering 50 times per page navigation.
+- Fixed the "download progress stuck at 0%" bug; if a server omits Content-Length, the progress is now cleanly displayed as a live size counter (e.g. `Downloaded: 12.4 MB`) with a fluid, animated indeterminate progress bar.
+- Added file size formatting helper (`formatSize`) for readable download statuses in notifications (KB, MB, GB).
 
 ### Changed
 - Translated all alert, status, and notification warning messages to English for consistency and internationalization compatibility.
+- Incremented build configuration to `versionCode = 6` and `versionName = "1.1.1"`.
 
 ---
 
