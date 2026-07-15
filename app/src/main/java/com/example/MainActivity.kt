@@ -47,6 +47,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -1245,6 +1246,15 @@ fun SettingsBottomSheet(
         }
     }
 
+    val versionName = remember {
+        try {
+            val pInfo = context.packageManager.getPackageInfo(context.packageName, 0)
+            pInfo.versionName ?: "1.1.7"
+        } catch (e: Exception) {
+            "1.1.7"
+        }
+    }
+
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
@@ -1440,34 +1450,98 @@ fun SettingsBottomSheet(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Section 3: About App
+            // Section 3: About App & Author
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(containerColor = Color(0xFF1E293B)),
                 shape = RoundedCornerShape(16.dp)
             ) {
-                Row(
-                    modifier = Modifier.padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Info,
-                        contentDescription = "Info",
-                        tint = Color(0xFF38BDF8)
-                    )
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Column {
-                        Text(
-                            text = "About LMSYS Chatbot Arena",
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 14.sp
+                val uriHandler = androidx.compose.ui.platform.LocalUriHandler.current
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Info,
+                            contentDescription = "Info",
+                            tint = Color(0xFF38BDF8)
                         )
+                        Spacer(modifier = Modifier.width(12.dp))
                         Text(
-                            text = "An open LLM evaluation platform developed by researchers from UC Berkeley, testing models via blind human preference.",
-                            fontSize = 12.sp,
-                            color = Color(0xFF94A3B8)
+                            text = "App Information",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 16.sp,
+                            color = Color.White
                         )
                     }
+
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "App Version",
+                            color = Color(0xFF94A3B8),
+                            fontSize = 13.sp
+                        )
+                        Text(
+                            text = "v$versionName",
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 13.sp
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Author & Developer",
+                            color = Color(0xFF94A3B8),
+                            fontSize = 13.sp
+                        )
+                        Text(
+                            text = "PiBOH",
+                            color = Color(0xFF38BDF8),
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 13.sp,
+                            textDecoration = androidx.compose.ui.text.style.TextDecoration.Underline,
+                            modifier = Modifier
+                                .clickable { uriHandler.openUri("https://piboh.github.io/") }
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    // Clean custom divider line
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(1.dp)
+                            .background(Color(0xFF334155))
+                    )
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Text(
+                        text = "About LMSYS Chatbot Arena",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 13.sp,
+                        color = Color.White
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "An open LLM evaluation platform developed by researchers from UC Berkeley, testing models via blind human preference.",
+                        fontSize = 12.sp,
+                        color = Color(0xFF94A3B8)
+                    )
                 }
             }
 
