@@ -568,6 +568,7 @@ fun WebViewContainer(
             }
 
             val webView = WebView(ctx).apply {
+                overScrollMode = View.OVER_SCROLL_NEVER
                 layoutParams = ViewGroup.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT,
                     ViewGroup.LayoutParams.MATCH_PARENT
@@ -591,6 +592,10 @@ fun WebViewContainer(
                     builtInZoomControls = true
                     displayZoomControls = false
                     cacheMode = WebSettings.LOAD_DEFAULT
+                    javaScriptCanOpenWindowsAutomatically = true
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                        mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
+                    }
                     
                     // Mask modern mobile Chrome user-agent for optimal grid/CSS layout parsing on Arena.ai
                     userAgentString = "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36"
@@ -612,6 +617,13 @@ fun WebViewContainer(
                         swipeRefreshLayout.isRefreshing = false
                         onPageStateChanged(canGoBack(), canGoForward(), url ?: "")
                         injectCustomMenuJavascript(view)
+                        
+                        // Explicitly flush cookies to disk to preserve authentication state immediately after password entry
+                        try {
+                            CookieManager.getInstance().flush()
+                        } catch (e: Exception) {
+                            e.printStackTrace()
+                        }
                     }
 
                     override fun onReceivedError(
@@ -639,18 +651,19 @@ fun WebViewContainer(
                                               lowerUrl.contains("lmsys.org")
                         
                         // Support all common authentication domains and OAuth callbacks
-                        val isAuthFlow = lowerUrl.contains("accounts.google") ||
-                                         lowerUrl.contains("google.com/accounts") ||
+                        val isAuthFlow = lowerUrl.contains("google.com") ||
+                                         lowerUrl.contains("google.it") ||
                                          lowerUrl.contains("huggingface.co") ||
-                                         lowerUrl.contains("github.com/login") ||
-                                         lowerUrl.contains("github.com/session") ||
-                                         lowerUrl.contains("appleid.apple.com") ||
+                                         lowerUrl.contains("github.com") ||
+                                         lowerUrl.contains("apple.com") ||
                                          lowerUrl.contains("oauth") ||
                                          lowerUrl.contains("login") ||
                                          lowerUrl.contains("signin") ||
                                          lowerUrl.contains("signup") ||
                                          lowerUrl.contains("auth") ||
-                                         lowerUrl.contains("checkpoint")
+                                         lowerUrl.contains("checkpoint") ||
+                                         lowerUrl.contains("recaptcha") ||
+                                         lowerUrl.contains("gstatic")
 
                         if (isArenaOrLmsys || isAuthFlow) {
                             return false
