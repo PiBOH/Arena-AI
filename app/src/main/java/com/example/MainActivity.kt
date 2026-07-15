@@ -141,6 +141,16 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
+        // Pre-create the WebView wasm cache directory to prevent chromium logs warnings/errors
+        try {
+            val wasmCacheDir = java.io.File(cacheDir, "WebView/Default/HTTP Cache/Code Cache/wasm")
+            if (!wasmCacheDir.exists()) {
+                wasmCacheDir.mkdirs()
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+
         // Monitor Network Connectivity
         registerNetworkCallback()
 
@@ -620,12 +630,28 @@ fun WebViewContainer(
                         request: WebResourceRequest?
                     ): Boolean {
                         val targetUrl = request?.url?.toString() ?: return false
+                        val lowerUrl = targetUrl.lowercase()
                         
                         // Keep chatbot arena and lmsys ecosystem fully contained inside the native app
-                        if (targetUrl.contains("arena.ai") || 
-                            targetUrl.contains("chat.lmsys.org") || 
-                            targetUrl.contains("google.com/accounts")
-                        ) {
+                        val isArenaOrLmsys = lowerUrl.contains("arena.ai") || 
+                                              lowerUrl.contains("lmarena.ai") ||
+                                              lowerUrl.contains("lmsys.org")
+                        
+                        // Support all common authentication domains and OAuth callbacks
+                        val isAuthFlow = lowerUrl.contains("accounts.google") ||
+                                         lowerUrl.contains("google.com/accounts") ||
+                                         lowerUrl.contains("huggingface.co") ||
+                                         lowerUrl.contains("github.com/login") ||
+                                         lowerUrl.contains("github.com/session") ||
+                                         lowerUrl.contains("appleid.apple.com") ||
+                                         lowerUrl.contains("oauth") ||
+                                         lowerUrl.contains("login") ||
+                                         lowerUrl.contains("signin") ||
+                                         lowerUrl.contains("signup") ||
+                                         lowerUrl.contains("auth") ||
+                                         lowerUrl.contains("checkpoint")
+
+                        if (isArenaOrLmsys || isAuthFlow) {
                             return false
                         }
                         
@@ -1064,6 +1090,67 @@ fun SettingsBottomSheet(
                             fontSize = 12.sp,
                             color = Color(0xFF94A3B8)
                         )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Section 4: GitHub Community & Feedback
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF1E293B)),
+                shape = RoundedCornerShape(16.dp)
+            ) {
+                val uriHandler = androidx.compose.ui.platform.LocalUriHandler.current
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Settings,
+                            contentDescription = "GitHub",
+                            tint = Color(0xFF38BDF8)
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Text(
+                            text = "GitHub Community & Feedback",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 16.sp,
+                            color = Color.White
+                        )
+                    }
+                    
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "Report bugs, propose new features, or contribute code directly on our GitHub repository.",
+                        fontSize = 12.sp,
+                        color = Color(0xFF94A3B8)
+                    )
+                    
+                    Spacer(modifier = Modifier.height(12.dp))
+                    
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Button(
+                            onClick = { uriHandler.openUri("https://github.com/PiBOH/Arena-AI/issues/new/choose") },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF38BDF8)),
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(10.dp)
+                        ) {
+                            Text(text = "New Issue", color = Color(0xFF0F172A), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        }
+                        
+                        Button(
+                            onClick = { uriHandler.openUri("https://github.com/PiBOH/Arena-AI/pulls") },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF475569)),
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(10.dp)
+                        ) {
+                            Text(text = "Pull Requests", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        }
                     }
                 }
             }

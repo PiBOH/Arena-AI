@@ -40,7 +40,7 @@ Please complete the following information:
 | --- | --- |
 | **Device / Smartphone** | [e.g. Google Pixel 8, Samsung Galaxy S23] |
 | **Android Version** | [e.g. Android 14] |
-| **App Version** | 1.0.2 |
+| **App Version** | 1.0.3 |
 | **Installation Source** | [e.g. GitHub APK, AI Studio, Self-compiled] |
 
 ---
