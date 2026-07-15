@@ -601,52 +601,36 @@ private fun injectCustomMenuJavascript(webView: WebView?) {
     webView?.evaluateJavascript(
         """
         (function() {
-            // 1. Inject custom styles to make sure three-dots options/menu buttons are visible and tappable on mobile
+            // 1. Inject custom styles to make sure three-dots options/menu buttons are visible on mobile touchscreens without disrupting layout
             try {
                 const styleId = 'android-three-dots-patch';
                 if (!document.getElementById(styleId)) {
                     const style = document.createElement('style');
                     style.id = styleId;
                     style.innerHTML = `
-                        /* Remove hover restrictions on chat list menus/three dots inside Gradio or sidebars */
-                        div[class*="history"] button,
-                        div[class*="sidebar"] button,
-                        [class*="history-item"] button,
-                        [class*="sidebar-item"] button,
+                        /* Remove hover opacity restrictions only on specific chat list sidebar three-dots menu buttons */
+                        div[class*="history"] button[aria-label*="menu" i],
+                        div[class*="history"] button[aria-label*="option" i],
+                        div[class*="history"] button[aria-label*="more" i],
+                        div[class*="sidebar"] button[aria-label*="menu" i],
+                        div[class*="sidebar"] button[aria-label*="option" i],
+                        div[class*="sidebar"] button[aria-label*="more" i],
+                        [class*="history-item"] button[aria-label*="menu" i],
+                        [class*="history-item"] button[aria-label*="option" i],
+                        [class*="history-item"] button[aria-label*="more" i],
+                        [class*="sidebar-item"] button[aria-label*="menu" i],
+                        [class*="sidebar-item"] button[aria-label*="option" i],
+                        [class*="sidebar-item"] button[aria-label*="more" i],
                         .chat-menu-button,
                         .options-button,
                         .menu-button,
                         .dots-button,
                         [class*="menu-btn"],
                         [class*="options-btn"],
-                        [class*="dots-btn"],
-                        button[aria-label*="menu" i],
-                        button[aria-label*="option" i],
-                        button[aria-label*="more" i],
-                        button[id*="menu" i],
-                        /* Support SVG-only options buttons */
-                        button:has(svg):hover,
-                        button:has(svg) {
-                            /* Ensure button is visible without hover on touch screens */
+                        [class*="dots-btn"] {
                             opacity: 1 !important;
                             visibility: visible !important;
-                            display: inline-flex !important;
-                            align-items: center !important;
-                            justify-content: center !important;
-                            /* Make easily clickable */
-                            min-width: 40px !important;
-                            min-height: 40px !important;
-                            z-index: 1000 !important;
                             pointer-events: auto !important;
-                        }
-
-                        /* Ensure containers do not clip popup menus or the three-dots buttons */
-                        div[class*="history-item"],
-                        div[class*="sidebar-item"],
-                        [class*="chat-row"],
-                        [class*="chat-item"] {
-                            overflow: visible !important;
-                            position: relative !important;
                         }
                     `;
                     document.head.appendChild(style);
@@ -655,43 +639,43 @@ private fun injectCustomMenuJavascript(webView: WebView?) {
                 console.error("Android Stylesheet Patch Error: ", styleErr);
             }
 
-            // 2. Stop event propagation on three-dots buttons so clicking them doesn't select/switch the chat row
+            // 2. Prevent click propagation on chat options so tapping them opens their dropdown without triggering parent row click/selection
             function optimizeThreeDots() {
                 try {
-                    const selectors = 'button, [role="button"], .menu-btn, .options-btn, [class*="menu-button"], [class*="options-button"], [class*="dots-button"]';
-                    const buttons = document.querySelectorAll(selectors);
-                    buttons.forEach(btn => {
-                        const html = btn.innerHTML || '';
-                        const ariaLabel = (btn.getAttribute('aria-label') || '').toLowerCase();
-                        const className = (btn.className || '').toLowerCase();
-                        
-                        const isThreeDots = html.includes('svg') || 
-                                            html.includes('⋮') || 
-                                            html.includes('...') || 
-                                            className.includes('menu') || 
-                                            className.includes('option') || 
-                                            className.includes('dots') ||
-                                            ariaLabel.includes('menu') || 
-                                            ariaLabel.includes('option') || 
-                                            ariaLabel.includes('more');
-                                            
-                        if (isThreeDots) {
-                            // Boost tap reliability
-                            btn.style.opacity = '1';
-                            btn.style.visibility = 'visible';
-                            btn.style.pointerEvents = 'auto';
+                    // Only scan items within the sidebar/history containers to avoid breaking any main content interactive actions (login buttons, chat selectors)
+                    const containers = document.querySelectorAll('[class*="history"], [class*="sidebar"], [class*="chat-row"], [class*="chat-item"]');
+                    containers.forEach(container => {
+                        const buttons = container.querySelectorAll('button, [role="button"], .menu-btn, .options-btn, [class*="menu-button"], [class*="options-button"], [class*="dots-button"]');
+                        buttons.forEach(btn => {
+                            const html = btn.innerHTML || '';
+                            const ariaLabel = (btn.getAttribute('aria-label') || '').toLowerCase();
+                            const className = (btn.className || '').toLowerCase();
                             
-                            if (!btn.dataset.threeDotsOptimized) {
-                                const stopEvent = (e) => {
-                                    // Prevent event bubbling to parent chat row (which selects/resets the active conversation)
-                                    e.stopPropagation();
-                                };
-                                ['click', 'touchstart', 'touchend', 'mousedown', 'mouseup'].forEach(evt => {
-                                    btn.addEventListener(evt, stopEvent, { capture: true });
-                                });
-                                btn.dataset.threeDotsOptimized = 'true';
+                            // Highly selective matching rules to prevent false-positives
+                            const isThreeDots = className.includes('menu') || 
+                                                className.includes('option') || 
+                                                className.includes('dots') ||
+                                                ariaLabel.includes('menu') || 
+                                                ariaLabel.includes('option') || 
+                                                ariaLabel.includes('more') ||
+                                                html.includes('⋮') || 
+                                                html.includes('...');
+                                                
+                            if (isThreeDots) {
+                                // Restore standard touch mechanics and only stop click event propagation to prevent bubble-up
+                                btn.style.opacity = '1';
+                                btn.style.visibility = 'visible';
+                                btn.style.pointerEvents = 'auto';
+                                
+                                if (!btn.dataset.threeDotsOptimized) {
+                                    btn.addEventListener('click', function(e) {
+                                        // Stop click bubbling up to the chat row item which would otherwise reset/select/switch the active conversation
+                                        e.stopPropagation();
+                                    });
+                                    btn.dataset.threeDotsOptimized = 'true';
+                                }
                             }
-                        }
+                        });
                     });
                 } catch (e) {
                     console.error("Three Dots Optimization Error: ", e);
