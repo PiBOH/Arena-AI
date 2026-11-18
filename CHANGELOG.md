@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.1.9] - 2026-11-18
+
+### Added
+- **Automatic GitHub release checks**: the app now reads the latest release of the repository on startup and shows an in-app dialog with the release notes and a direct download link when a newer version exists. A manual **Check for updates** action was added to the App Information section.
+- **Centralized versioning** through `version.txt` (version name, version code and release channel), read both by Gradle and by the release workflow.
+- **Auto Release workflow**: pushing a commit whose message starts with `v` to `main` builds the APK and publishes a GitHub release, including the matching changelog section when available.
+
+### Changed
+- Added the **MIT License**.
+- The Settings sheet now reads the installed version from `BuildConfig` instead of a hardcoded fallback.
+
+### Fixed
+- **"I'm not a robot" verification no longer blocks the app**: Cloudflare Turnstile, hCaptcha and challenge-platform URLs are now handled inside the WebView instead of being sent to the external browser, where the verification overlay used to stay stuck on top of the page. Challenge popups are rendered in the same WebView as well.
+- **Launcher icon size**: the adaptive icon logo is now drawn 25% smaller, so it no longer looks oversized in the Android app list.
+
+---
+
 ## [1.1.8] - 2026-07-15
 
 ### Added
@@ -162,7 +179,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Embedded local dark/light themes paired with consistent spacing grids (touch targets ≥ 48dp).
 - Integrated hardware-accelerated media, DOM storage, and native file uploads.
 
-[Unreleased]: https://github.com/PiBOH/Arena-AI/compare/v1.0.3...HEAD
+[Unreleased]: https://github.com/PiBOH/Arena-AI/compare/v1.1.9...HEAD
+[1.1.9]: https://github.com/PiBOH/Arena-AI/compare/v1.1.8...v1.1.9
 [1.0.3]: https://github.com/PiBOH/Arena-AI/compare/v1.0.2...v1.0.3
 [1.0.2]: https://github.com/PiBOH/Arena-AI/compare/v1.0.1...v1.0.2
 [1.0.1]: https://github.com/PiBOH/Arena-AI/compare/v1.0.0...v1.0.1

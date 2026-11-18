@@ -1,0 +1,10 @@
+# version.txt - the release metadata, read by the workflows and by
+# app/build.gradle.kts. Three value lines, then these notes:
+# line 1 = version name (SemVer)
+# line 2 = version code (monotonic integer, used by Android)
+# line 3 = release channel (stable / beta)
+# Lines starting with "#" are ignored everywhere, so notes may be added
+# here without renumbering the three value lines.
+1.1.9
+14
+stable

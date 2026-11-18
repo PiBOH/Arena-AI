@@ -1,5 +1,13 @@
 import com.google.gms.googleservices.GoogleServicesPlugin.MissingGoogleServicesStrategy
 
+// Centralized versioning: version.txt (line 1 = version name, line 2 = version code,
+// line 3 = release channel). Lines starting with "#" are ignored.
+val versionFileLines = rootProject.file("version.txt").readLines()
+  .map { it.substringBefore('#').trim() }
+  .filter { it.isNotEmpty() }
+val appVersionName = versionFileLines.getOrNull(0) ?: "0.0.0"
+val appVersionCode = versionFileLines.getOrNull(1)?.toIntOrNull() ?: 1
+
 plugins {
   alias(libs.plugins.android.application)
   alias(libs.plugins.kotlin.compose)
@@ -17,8 +25,8 @@ android {
     applicationId = "com.arenaai.app"
     minSdk = 24
     targetSdk = 36
-    versionCode = 13
-    versionName = "1.1.8"
+    versionCode = appVersionCode
+    versionName = appVersionName
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
   }

@@ -1,0 +1,130 @@
+name: Auto Release
+
+# Same release signal as the other PiBOH repositories: a push to main whose
+# commit message starts with "v" (e.g. "v1.1.9 ..."), or a manual dispatch.
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Versione da rilasciare (vuoto = version.txt)"
+        required: false
+        type: string
+        default: ""
+  push:
+    branches: [main]
+    tags-ignore: ["**"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build APK & publish release
+    if: github.event_name == 'workflow_dispatch' || startsWith(github.event.head_commit.message, 'v')
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Resolve version
+        id: version
+        env:
+          VERSION_INPUT: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          # version.txt: line 1 = version name, line 2 = version code, line 3 = channel.
+          read_value() { sed -n "${1}p" version.txt | tr -d '\r\n' | sed 's/#.*//' | xargs; }
+          VERSION="${VERSION_INPUT:-$(read_value 1)}"
+          VERSION_CODE="$(read_value 2)"
+          CHANNEL="$(read_value 3 | tr '[:upper:]' '[:lower:]')"
+          VERSION="${VERSION#v}"
+          CHANNEL="${CHANNEL:-stable}"
+          if [[ "$CHANNEL" == "stable" ]]; then PRERELEASE=false; else PRERELEASE=true; fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "version_code=$VERSION_CODE" >> "$GITHUB_OUTPUT"
+          echo "channel=$CHANNEL" >> "$GITHUB_OUTPUT"
+          echo "prerelease=$PRERELEASE" >> "$GITHUB_OUTPUT"
+          echo "tag=v$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Resolved v$VERSION (versionCode $VERSION_CODE, channel $CHANNEL)"
+
+      - name: Build APK
+        id: build
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          chmod +x gradlew
+          if [[ -n "${KEYSTORE_BASE64:-}" ]]; then
+            echo "Keystore trovato: build release firmata."
+            printf '%s' "$KEYSTORE_BASE64" | base64 -d > my-upload-key.jks
+            export KEYSTORE_PATH="$PWD/my-upload-key.jks"
+            ./gradlew assembleRelease --no-daemon --stacktrace
+            APK_PATH="$(find app/build/outputs/apk/release -name '*.apk' -print -quit)"
+            VARIANT="release"
+          else
+            echo "Secret KEYSTORE_BASE64 assente: build di un APK debug."
+            ./gradlew assembleDebug --no-daemon --stacktrace
+            APK_PATH="$(find app/build/outputs/apk/debug -name '*.apk' -print -quit)"
+            VARIANT="debug"
+          fi
+          [[ -n "$APK_PATH" ]] || { echo "APK non trovato"; exit 1; }
+          ASSET="Arena-AI-v${{ steps.version.outputs.version }}-$VARIANT.apk"
+          cp "$APK_PATH" "$ASSET"
+          echo "asset=$ASSET" >> "$GITHUB_OUTPUT"
+          ls -lh "$ASSET"
+
+      - name: Extract changelog section
+        id: changelog
+        run: |
+          set -euo pipefail
+          # The changelog is optional: when CHANGELOG.md has a section for this
+          # version it becomes the release body, otherwise the recent commits do.
+          VERSION="${{ steps.version.outputs.version }}"
+          SECTION=""
+          if [[ -f CHANGELOG.md ]]; then
+            SECTION="$(awk -v v="$VERSION" '
+              index($0, "## [" v "]") == 1 { found = 1; next }
+              found && /^## / { exit }
+              found { print }
+            ' CHANGELOG.md | sed '/./,$!d')"
+          fi
+          if [[ -z "$SECTION" ]]; then
+            SECTION="$(git log --pretty=format:'- %s' -n 30 --no-merges)"
+          fi
+          {
+            echo "section<<CHANGELOG_EOF"
+            echo "$SECTION"
+            echo "CHANGELOG_EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Publish GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: Arena AI v${{ steps.version.outputs.version }}
+          target_commitish: ${{ github.sha }}
+          prerelease: ${{ steps.version.outputs.prerelease }}
+          files: ${{ steps.build.outputs.asset }}
+          fail_on_unmatched_files: true
+          body: |
+            ## Arena AI v${{ steps.version.outputs.version }}
+
+            **Canale:** `${{ steps.version.outputs.channel }}` · **versionCode:** `${{ steps.version.outputs.version_code }}`
+
+            ${{ steps.changelog.outputs.section }}
+
+            ---
+            Build automatica dal commit `${{ github.sha }}`.
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

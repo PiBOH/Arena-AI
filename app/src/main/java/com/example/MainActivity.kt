@@ -30,6 +30,7 @@ import androidx.activity.compose.setContent
 import android.app.DownloadManager
 import android.webkit.URLUtil
 import android.os.Environment
+import android.os.Message
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import androidx.core.app.NotificationCompat
@@ -58,6 +59,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -78,6 +80,7 @@ import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -94,6 +97,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.SmallFloatingActionButton
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
@@ -202,6 +206,33 @@ class MainActivity : ComponentActivity() {
                     }
                 }
 
+                // Automatic GitHub release check (once on startup, plus the manual action in Settings)
+                var availableUpdate by remember { mutableStateOf<GitHubRelease?>(null) }
+                var isCheckingForUpdates by remember { mutableStateOf(false) }
+                val updateScope = rememberCoroutineScope()
+                val checkForUpdates: (Boolean) -> Unit = { manual ->
+                    if (!isCheckingForUpdates) {
+                        isCheckingForUpdates = true
+                        updateScope.launch {
+                            val release = ReleaseUpdateChecker.fetchLatestRelease()
+                                ?.takeIf {
+                                    ReleaseUpdateChecker.isNewerVersion(it.version, BuildConfig.VERSION_NAME)
+                                }
+                            isCheckingForUpdates = false
+                            if (release != null) {
+                                availableUpdate = release
+                            } else if (manual) {
+                                Toast.makeText(
+                                    this@MainActivity,
+                                    "You are already using the latest version (v${BuildConfig.VERSION_NAME}).",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            }
+                        }
+                    }
+                }
+                LaunchedEffect(Unit) { checkForUpdates(false) }
+
                 // Back Button Interceptor
                 BackHandler {
                     val web = webView
@@ -307,8 +338,19 @@ class MainActivity : ComponentActivity() {
                                     web.loadUrl(targetUrl)
                                 }
                             },
+                            onCheckForUpdates = { checkForUpdates(true) },
+                            isCheckingForUpdates = isCheckingForUpdates,
                             currentUrl = currentUrl,
                             onDismiss = { showSettings = false }
+                        )
+                    }
+
+                    // Shown once when a newer GitHub release is found, and on demand from Settings
+                    availableUpdate?.let { release ->
+                        UpdateAvailableDialog(
+                            release = release,
+                            currentVersion = BuildConfig.VERSION_NAME,
+                            onDismiss = { availableUpdate = null }
                         )
                     }
                 }
@@ -1012,7 +1054,16 @@ fun WebViewContainer(
                                          lowerUrl.contains("recaptcha") ||
                                          lowerUrl.contains("gstatic")
 
-                        if (isArenaOrLmsys || isAuthFlow) {
+                        // Bot verification (Cloudflare Turnstile, hCaptcha, challenge platform) must
+                        // run inside the WebView: sending those URLs to the external browser left the
+                        // "I'm not a robot" overlay stuck on top of the page, blocking the whole app.
+                        val isVerificationFlow = lowerUrl.contains("cloudflare.com") ||
+                                                 lowerUrl.contains("cdn-cgi/challenge-platform") ||
+                                                 lowerUrl.contains("turnstile") ||
+                                                 lowerUrl.contains("hcaptcha.com") ||
+                                                 lowerUrl.contains("captcha")
+
+                        if (isArenaOrLmsys || isAuthFlow || isVerificationFlow) {
                             return false
                         }
                         
@@ -1112,6 +1163,21 @@ fun WebViewContainer(
                         onProgressChanged(newProgress)
                     }
 
+                    override fun onCreateWindow(
+                        view: WebView?,
+                        isDialog: Boolean,
+                        isUserGesture: Boolean,
+                        resultMsg: Message?
+                    ): Boolean {
+                        val transport = resultMsg?.obj as? WebView.WebViewTransport ?: return false
+                        // Verification challenges and target=_blank links ask for a popup window:
+                        // render it in this WebView so the challenge can complete instead of leaving
+                        // the verification overlay stuck on the page.
+                        transport.webView = view
+                        resultMsg.sendToTarget()
+                        return true
+                    }
+
                     override fun onShowFileChooser(
                         webView: WebView?,
                         filePathCallback: android.webkit.ValueCallback<Array<Uri>>?,
@@ -1164,6 +1230,59 @@ fun WebViewContainer(
 
 
 @Composable
+fun UpdateAvailableDialog(
+    release: GitHubRelease,
+    currentVersion: String,
+    onDismiss: () -> Unit
+) {
+    val uriHandler = androidx.compose.ui.platform.LocalUriHandler.current
+    val downloadUrl = release.apkUrl ?: release.pageUrl
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = Color(0xFF1E293B),
+        titleContentColor = Color(0xFF38BDF8),
+        textContentColor = Color(0xFFCBD5E1),
+        title = {
+            Text(text = "Update available", fontWeight = FontWeight.Bold)
+        },
+        text = {
+            Column {
+                Text(
+                    text = "Version v${release.version} is available (installed: v$currentVersion).",
+                    fontSize = 14.sp
+                )
+                if (release.notes.isNotBlank()) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = release.notes.take(600),
+                        fontSize = 12.sp,
+                        maxLines = 10
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    if (downloadUrl.isNotBlank()) {
+                        uriHandler.openUri(downloadUrl)
+                    }
+                    onDismiss()
+                }
+            ) {
+                Text(text = "Download", color = Color(0xFF38BDF8), fontWeight = FontWeight.Bold)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(text = "Later", color = Color(0xFF94A3B8))
+            }
+        }
+    )
+}
+
+@Composable
 fun OfflineScreen(onRetryClick: () -> Unit) {
     Column(
         modifier = Modifier
@@ -1210,6 +1329,8 @@ fun SettingsBottomSheet(
     isHardwareAccelerated: Boolean,
     onHardwareAcceleratedChange: (Boolean) -> Unit,
     onClearCacheClick: () -> Unit,
+    onCheckForUpdates: () -> Unit,
+    isCheckingForUpdates: Boolean,
     currentUrl: String,
     onDismiss: () -> Unit
 ) {
@@ -1249,9 +1370,9 @@ fun SettingsBottomSheet(
     val versionName = remember {
         try {
             val pInfo = context.packageManager.getPackageInfo(context.packageName, 0)
-            pInfo.versionName ?: "1.1.7"
+            pInfo.versionName ?: BuildConfig.VERSION_NAME
         } catch (e: Exception) {
-            "1.1.7"
+            BuildConfig.VERSION_NAME
         }
     }
 
@@ -1492,6 +1613,28 @@ fun SettingsBottomSheet(
                             color = Color.White,
                             fontWeight = FontWeight.Bold,
                             fontSize = 13.sp
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    TextButton(
+                        onClick = onCheckForUpdates,
+                        enabled = !isCheckingForUpdates,
+                        contentPadding = PaddingValues(0.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Refresh,
+                            contentDescription = null,
+                            tint = Color(0xFF38BDF8),
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = if (isCheckingForUpdates) "Checking for updates..." else "Check for updates",
+                            color = Color(0xFF38BDF8),
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold
                         )
                     }
 
