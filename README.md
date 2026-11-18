@@ -13,7 +13,7 @@
  <a href="https://github.com/PiBOH/Arena-AI/releases">
  <img src="https://img.shields.io/github/v/release/PiBOH/Arena-AI?include_prereleases&label=download&style=for-the-badge&color=4CAF50" alt="Download the latest release">
  </a>
- <a href="https://github.com/PiBOH/Arena-AI/releases">
+ <a href="https://github.com/PiBOH/Arena-AI/releases/download/latest/Arena-AI.apk">
  <img src="https://img.shields.io/github/downloads/PiBOH/Arena-AI/total?style=for-the-badge&color=blue" alt="Total downloads">
  </a>
  <a href="LICENSE">
