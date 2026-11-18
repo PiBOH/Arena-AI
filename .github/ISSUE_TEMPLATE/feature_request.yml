@@ -1,4 +1,4 @@
-name: "✨ Feature Request"
+name: " Feature Request"
 description: Suggest an idea or improvement for Arena AI
 title: "[FEATURE]: "
 labels: ["enhancement"]
@@ -11,7 +11,7 @@ body:
   - type: textarea
     id: proposal
     attributes:
-      label: "💡 Feature Proposal"
+      label: " Feature Proposal"
       description: |
         Is your feature request related to a problem? Please describe.
       placeholder: "e.g. It would be handy to quickly select..."
@@ -20,7 +20,7 @@ body:
   - type: textarea
     id: solution
     attributes:
-      label: "🚀 Desired Solution"
+      label: " Desired Solution"
       description: |
         A clear and concise description of what you want to happen or see in the app.
       placeholder: "e.g. I would like a button that..."
@@ -29,13 +29,13 @@ body:
   - type: textarea
     id: design
     attributes:
-      label: "🎨 Design or Flow Mockups"
+      label: " Design or Flow Mockups"
       description: |
         If applicable, describe how you imagine the UI layout, components, or screens.
   - type: textarea
     id: usecase
     attributes:
-      label: "👥 Use Case"
+      label: " Use Case"
       description: |
         Explain why this feature would be useful to you and other users.
       placeholder: "e.g. This would help users who want to save..."
@@ -44,6 +44,6 @@ body:
   - type: textarea
     id: context
     attributes:
-      label: "🛠️ Additional Context"
+      label: " Additional Context"
       description: |
         Add any other context, screenshots, or references here.

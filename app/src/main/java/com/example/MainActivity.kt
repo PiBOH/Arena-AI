@@ -47,8 +47,10 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -110,6 +112,7 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -123,9 +126,28 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
+import androidx.core.view.WindowCompat
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 import com.example.ui.theme.MyApplicationTheme
 import kotlinx.coroutines.launch
+
+internal const val THEME_SYSTEM = "system"
+internal const val THEME_LIGHT = "light"
+internal const val THEME_DARK = "dark"
+
+private const val PREFS_NAME = "arena_prefs"
+private const val KEY_THEME = "app_theme"
+
+internal fun loadThemePreference(context: Context): String =
+    context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        .getString(KEY_THEME, THEME_SYSTEM) ?: THEME_SYSTEM
+
+internal fun saveThemePreference(context: Context, value: String) {
+    context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        .edit()
+        .putString(KEY_THEME, value)
+        .apply()
+}
 
 class MainActivity : ComponentActivity() {
 
@@ -175,7 +197,24 @@ class MainActivity : ComponentActivity() {
         registerNetworkCallback()
 
         setContent {
-            MyApplicationTheme(darkTheme = true, dynamicColor = false) {
+            var themePreference by remember { mutableStateOf(loadThemePreference(this)) }
+            val darkTheme = when (themePreference) {
+                THEME_LIGHT -> false
+                THEME_DARK -> true
+                else -> isSystemInDarkTheme()
+            }
+
+            // Keep the system bars readable and re-apply the theme to the live page
+            // every time the preference (or the system mode) changes.
+            LaunchedEffect(darkTheme) {
+                WindowCompat.getInsetsController(window, window.decorView).apply {
+                    isAppearanceLightStatusBars = !darkTheme
+                    isAppearanceLightNavigationBars = !darkTheme
+                }
+                webView?.let { applyWebTheme(it, darkTheme) }
+            }
+
+            MyApplicationTheme(darkTheme = darkTheme, dynamicColor = false) {
                 var canGoBack by remember { mutableStateOf(false) }
                 var canGoForward by remember { mutableStateOf(false) }
                 var isLoading by remember { mutableStateOf(true) }
@@ -257,7 +296,7 @@ class MainActivity : ComponentActivity() {
                             .fillMaxSize()
                             .padding(innerPadding)
                             .imePadding()
-                            .background(Color(0xFF0F172A)) // Slate 900
+                            .background(if (darkTheme) Color(0xFF0F172A) else Color(0xFFF8FAFC))
                     ) {
                         // Check Online/Offline state
                         if (isOnline.value) {
@@ -265,6 +304,7 @@ class MainActivity : ComponentActivity() {
                             WebViewContainer(
                                 url = initialUrl,
                                 isHardwareAccelerated = isHardwareAccelerated,
+                                isDarkTheme = darkTheme,
                                 onWebViewCreated = { web ->
                                     webView = web
                                 },
@@ -317,6 +357,12 @@ class MainActivity : ComponentActivity() {
                     // Settings Bottom Sheet
                     if (showSettings) {
                         SettingsBottomSheet(
+                            darkTheme = darkTheme,
+                            themePreference = themePreference,
+                            onThemePreferenceChange = { value ->
+                                themePreference = value
+                                saveThemePreference(this@MainActivity, value)
+                            },
                             isHardwareAccelerated = isHardwareAccelerated,
                             onHardwareAcceleratedChange = { enabled ->
                                 isHardwareAccelerated = enabled
@@ -640,6 +686,47 @@ private fun formatSize(bytes: Long): String {
     }
 }
 
+/**
+ * Applies the in-app appearance choice to the rendered site.
+ *
+ * Dark mode leaves arena.ai untouched (the site is dark by design) and only
+ * advertises the color scheme. Light mode inverts the page with a CSS filter and
+ * flips images, videos and canvases back, so every rendered surface follows the
+ * setting instead of only the native chrome.
+ */
+private fun applyWebTheme(webView: WebView, dark: Boolean) {
+    webView.setBackgroundColor(if (dark) 0xFF0F172A.toInt() else 0xFFF8FAFC.toInt())
+    injectThemeJavascript(webView, dark)
+}
+
+private fun injectThemeJavascript(webView: WebView?, dark: Boolean) {
+    val isDark = if (dark) "true" else "false"
+    webView?.evaluateJavascript(
+        """
+        (function() {
+            try {
+                var styleId = 'android-app-theme';
+                var style = document.getElementById(styleId);
+                if (!style) {
+                    style = document.createElement('style');
+                    style.id = styleId;
+                    (document.head || document.documentElement).appendChild(style);
+                }
+                style.textContent = $isDark ? '' : [
+                    'html { background: #FFFFFF !important; filter: invert(1) hue-rotate(180deg) !important; }',
+                    'img, picture, video, canvas, iframe, svg image { filter: invert(1) hue-rotate(180deg) !important; }'
+                ].join('\n');
+                document.documentElement.style.colorScheme = $isDark ? 'dark' : 'light';
+                document.documentElement.setAttribute('data-arena-theme', $isDark ? 'dark' : 'light');
+            } catch (err) {
+                console.error('Android Theme Injection Error: ', err);
+            }
+        })();
+        """.trimIndent(),
+        null
+    )
+}
+
 private fun injectCustomMenuJavascript(webView: WebView?) {
     webView?.evaluateJavascript(
         """
@@ -801,7 +888,7 @@ private fun injectCustomMenuJavascript(webView: WebView?) {
                         toggleBtn.style.marginTop = '8px';
                         toggleBtn.style.marginBottom = '8px';
                         
-                        toggleBtn.innerHTML = '<span>📱 App Options</span><span class="app-arrow" style="transition: transform 0.2s; margin-left: 8px;">▼</span>';
+                        toggleBtn.innerHTML = '<span>App Options</span><span class="app-arrow" style="transition: transform 0.2s; margin-left: 8px;">▼</span>';
                         
                         // Create Collapsible Submenu
                         const submenu = document.createElement('div');
@@ -858,16 +945,16 @@ private fun injectCustomMenuJavascript(webView: WebView?) {
                             return btn;
                         };
                         
-                        row1.appendChild(createSubBtn('⬅️ Back', 'goBack'));
-                        row1.appendChild(createSubBtn('➡️ Forward', 'goForward'));
-                        row1.appendChild(createSubBtn('🔄 Reload', 'reload'));
+                        row1.appendChild(createSubBtn('Back', 'goBack'));
+                        row1.appendChild(createSubBtn('Forward', 'goForward'));
+                        row1.appendChild(createSubBtn('Reload', 'reload'));
                         
                         // Row 2: Settings
                         const row2 = document.createElement('div');
                         row2.style.display = 'flex';
                         row2.style.width = '100%';
                         
-                        const settingsBtn = createSubBtn('⚙️ Settings', 'openSettings');
+                        const settingsBtn = createSubBtn('Settings', 'openSettings');
                         settingsBtn.style.width = '100%';
                         row2.appendChild(settingsBtn);
                         
@@ -939,6 +1026,7 @@ private fun injectCustomMenuJavascript(webView: WebView?) {
 fun WebViewContainer(
     url: String,
     isHardwareAccelerated: Boolean,
+    isDarkTheme: Boolean,
     onWebViewCreated: (WebView) -> Unit,
     onProgressChanged: (Int) -> Unit,
     onPageStateChanged: (canGoBack: Boolean, canGoForward: Boolean, url: String) -> Unit,
@@ -947,6 +1035,7 @@ fun WebViewContainer(
     onSettingsClick: () -> Unit
 ) {
     val context = LocalContext.current
+    val currentDarkTheme = rememberUpdatedState(isDarkTheme)
 
     AndroidView(
         factory = { ctx ->
@@ -968,6 +1057,7 @@ fun WebViewContainer(
                 isFocusableInTouchMode = true
 
                 addJavascriptInterface(WebAppInterface(this, onSettingsClick), "AndroidApp")
+                applyWebTheme(this, isDarkTheme)
 
                 // Optimize settings for extreme speed and older device compatibility
                 settings.apply {
@@ -1005,6 +1095,7 @@ fun WebViewContainer(
                         super.onPageFinished(view, url)
                         swipeRefreshLayout.isRefreshing = false
                         onPageStateChanged(canGoBack(), canGoForward(), url ?: "")
+                        view?.let { applyWebTheme(it, currentDarkTheme.value) }
                         injectCustomMenuJavascript(view)
                         
                         // Explicitly flush cookies to disk to preserve authentication state immediately after password entry
@@ -1326,6 +1417,9 @@ fun OfflineScreen(onRetryClick: () -> Unit) {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsBottomSheet(
+    darkTheme: Boolean,
+    themePreference: String,
+    onThemePreferenceChange: (String) -> Unit,
     isHardwareAccelerated: Boolean,
     onHardwareAcceleratedChange: (Boolean) -> Unit,
     onClearCacheClick: () -> Unit,
@@ -1336,6 +1430,14 @@ fun SettingsBottomSheet(
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val context = LocalContext.current
+
+    // Theme-aware palette: the sheet uses the same resolved appearance as the site.
+    val sheetBackground = if (darkTheme) Color(0xFF0F172A) else Color(0xFFF8FAFC)
+    val cardBackground = if (darkTheme) Color(0xFF1E293B) else Color(0xFFFFFFFF)
+    val primaryText = if (darkTheme) Color.White else Color(0xFF0F172A)
+    val secondaryText = if (darkTheme) secondaryText else outline
+    val outline = if (darkTheme) outline else Color(0xFFCBD5E1)
+    val buttonSurface = if (darkTheme) outline else Color(0xFFE2E8F0)
 
     // Notification fields for testing
     var pushTitle by remember { mutableStateOf("Super Leaderboard!") }
@@ -1379,8 +1481,8 @@ fun SettingsBottomSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = Color(0xFF0F172A), // Slate 900
-        contentColor = Color.White
+        containerColor = sheetBackground
+        contentColor = primaryText
     ) {
         Column(
             modifier = Modifier
@@ -1399,15 +1501,77 @@ fun SettingsBottomSheet(
             Text(
                 text = "Customize the experience and test push notifications",
                 fontSize = 13.sp,
-                color = Color(0xFF94A3B8)
+                color = secondaryText
             )
 
             Spacer(modifier = Modifier.height(20.dp))
 
+            // Section 0: Appearance
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = cardBackground),
+                shape = RoundedCornerShape(16.dp)
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Image(
+                            painter = painterResource(
+                                if (darkTheme) R.drawable.ic_arena_logo else R.drawable.ic_arena_logo_light
+                            ),
+                            contentDescription = "Arena AI logo",
+                            modifier = Modifier.size(44.dp)
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Column {
+                            Text(
+                                text = "Appearance",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 16.sp,
+                                color = primaryText
+                            )
+                            Text(
+                                text = "System, light or dark. The site and the logo follow your choice.",
+                                fontSize = 12.sp,
+                                color = secondaryText
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        listOf(
+                            THEME_SYSTEM to "System",
+                            THEME_LIGHT to "Light",
+                            THEME_DARK to "Dark"
+                        ).forEach { (value, label) ->
+                            val selected = themePreference == value
+                            Button(
+                                onClick = { onThemePreferenceChange(value) },
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = if (selected) Color(0xFF38BDF8) else buttonSurface,
+                                    contentColor = if (selected) Color(0xFF0F172A) else primaryText
+                                ),
+                                contentPadding = PaddingValues(0.dp),
+                                modifier = Modifier.weight(1f),
+                                shape = RoundedCornerShape(10.dp)
+                            ) {
+                                Text(text = label, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
             // Section 1: Push Notifications
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFF1E293B)),
+                colors = CardDefaults.cardColors(containerColor = cardBackground),
                 shape = RoundedCornerShape(16.dp)
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
@@ -1434,7 +1598,7 @@ fun SettingsBottomSheet(
                         Text(
                             text = "Enable notifications to receive updates about new models and chatbot leaderboards.",
                             fontSize = 13.sp,
-                            color = Color(0xFF94A3B8)
+                            color = secondaryText
                         )
                         Spacer(modifier = Modifier.height(10.dp))
                         Button(
@@ -1449,7 +1613,7 @@ fun SettingsBottomSheet(
                         Text(
                             text = "Notifications enabled! You can send a mock test push notification below:",
                             fontSize = 13.sp,
-                            color = Color(0xFF94A3B8)
+                            color = secondaryText
                         )
 
                         Spacer(modifier = Modifier.height(12.dp))
@@ -1461,12 +1625,12 @@ fun SettingsBottomSheet(
                             label = { Text("Notification Title") },
                             modifier = Modifier.fillMaxWidth(),
                             colors = OutlinedTextFieldDefaults.colors(
-                                focusedTextColor = Color.White,
-                                unfocusedTextColor = Color.White,
+                                focusedTextColor = primaryText,
+                                unfocusedTextColor = primaryText,
                                 focusedLabelColor = Color(0xFF38BDF8),
-                                unfocusedLabelColor = Color(0xFF94A3B8),
+                                unfocusedLabelColor = secondaryText,
                                 focusedBorderColor = Color(0xFF38BDF8),
-                                unfocusedBorderColor = Color(0xFF475569)
+                                unfocusedBorderColor = outline
                             )
                         )
 
@@ -1478,12 +1642,12 @@ fun SettingsBottomSheet(
                             label = { Text("Notification Message") },
                             modifier = Modifier.fillMaxWidth(),
                             colors = OutlinedTextFieldDefaults.colors(
-                                focusedTextColor = Color.White,
-                                unfocusedTextColor = Color.White,
+                                focusedTextColor = primaryText,
+                                unfocusedTextColor = primaryText,
                                 focusedLabelColor = Color(0xFF38BDF8),
-                                unfocusedLabelColor = Color(0xFF94A3B8),
+                                unfocusedLabelColor = secondaryText,
                                 focusedBorderColor = Color(0xFF38BDF8),
-                                unfocusedBorderColor = Color(0xFF475569)
+                                unfocusedBorderColor = outline
                             )
                         )
 
@@ -1514,7 +1678,7 @@ fun SettingsBottomSheet(
             // Section 2: Performance
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFF1E293B)),
+                colors = CardDefaults.cardColors(containerColor = cardBackground),
                 shape = RoundedCornerShape(16.dp)
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
@@ -1522,13 +1686,13 @@ fun SettingsBottomSheet(
                         text = "Performance & Fluidity",
                         fontWeight = FontWeight.Bold,
                         fontSize = 16.sp,
-                        color = Color.White
+                        color = primaryText
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         text = "Optimize web rendering performance on older devices.",
                         fontSize = 12.sp,
-                        color = Color(0xFF94A3B8)
+                        color = secondaryText
                     )
 
                     Spacer(modifier = Modifier.height(12.dp))
@@ -1543,7 +1707,7 @@ fun SettingsBottomSheet(
                             Text(
                                 text = "Use GPU for smooth rendering",
                                 fontSize = 11.sp,
-                                color = Color(0xFF94A3B8)
+                                color = secondaryText
                             )
                         }
                         Switch(
@@ -1574,7 +1738,7 @@ fun SettingsBottomSheet(
             // Section 3: About App & Author
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFF1E293B)),
+                colors = CardDefaults.cardColors(containerColor = cardBackground),
                 shape = RoundedCornerShape(16.dp)
             ) {
                 val uriHandler = androidx.compose.ui.platform.LocalUriHandler.current
@@ -1592,7 +1756,7 @@ fun SettingsBottomSheet(
                             text = "App Information",
                             fontWeight = FontWeight.Bold,
                             fontSize = 16.sp,
-                            color = Color.White
+                            color = primaryText
                         )
                     }
 
@@ -1605,12 +1769,12 @@ fun SettingsBottomSheet(
                     ) {
                         Text(
                             text = "App Version",
-                            color = Color(0xFF94A3B8),
+                            color = secondaryText,
                             fontSize = 13.sp
                         )
                         Text(
                             text = "v$versionName",
-                            color = Color.White,
+                            color = primaryText
                             fontWeight = FontWeight.Bold,
                             fontSize = 13.sp
                         )
@@ -1647,7 +1811,7 @@ fun SettingsBottomSheet(
                     ) {
                         Text(
                             text = "Author & Developer",
-                            color = Color(0xFF94A3B8),
+                            color = secondaryText,
                             fontSize = 13.sp
                         )
                         Text(
@@ -1668,7 +1832,7 @@ fun SettingsBottomSheet(
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(1.dp)
-                            .background(Color(0xFF334155))
+                            .background(outline)
                     )
 
                     Spacer(modifier = Modifier.height(12.dp))
@@ -1677,13 +1841,13 @@ fun SettingsBottomSheet(
                         text = "About LMSYS Chatbot Arena",
                         fontWeight = FontWeight.Bold,
                         fontSize = 13.sp,
-                        color = Color.White
+                        color = primaryText
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         text = "An open LLM evaluation platform developed by researchers from UC Berkeley, testing models via blind human preference.",
                         fontSize = 12.sp,
-                        color = Color(0xFF94A3B8)
+                        color = secondaryText
                     )
                 }
             }
@@ -1693,7 +1857,7 @@ fun SettingsBottomSheet(
             // Section 4: GitHub Community & Feedback
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFF1E293B)),
+                colors = CardDefaults.cardColors(containerColor = cardBackground),
                 shape = RoundedCornerShape(16.dp)
             ) {
                 val uriHandler = androidx.compose.ui.platform.LocalUriHandler.current
@@ -1711,7 +1875,7 @@ fun SettingsBottomSheet(
                             text = "GitHub Community & Feedback",
                             fontWeight = FontWeight.Bold,
                             fontSize = 16.sp,
-                            color = Color.White
+                            color = primaryText
                         )
                     }
                     
@@ -1719,7 +1883,7 @@ fun SettingsBottomSheet(
                     Text(
                         text = "Report bugs, propose new features, or contribute code directly on our GitHub repository.",
                         fontSize = 12.sp,
-                        color = Color(0xFF94A3B8)
+                        color = secondaryText
                     )
                     
                     Spacer(modifier = Modifier.height(12.dp))
@@ -1739,7 +1903,7 @@ fun SettingsBottomSheet(
                         
                         Button(
                             onClick = { uriHandler.openUri("https://github.com/PiBOH/Arena-AI/pulls") },
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF475569)),
+                            colors = ButtonDefaults.buttonColors(containerColor = outline),
                             modifier = Modifier.weight(1f),
                             shape = RoundedCornerShape(10.dp)
                         ) {
@@ -1755,7 +1919,7 @@ fun SettingsBottomSheet(
             Text(
                 text = "Active Page: $currentUrl",
                 fontSize = 10.sp,
-                color = Color(0xFF475569),
+                color = outline,
                 textAlign = TextAlign.Center,
                 modifier = Modifier.fillMaxWidth()
             )

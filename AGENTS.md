@@ -479,3 +479,49 @@ app". The reusable parts:
 When adapting it, change `targetUrl`, the domain whitelist, `applicationId`,
 the icon drawables and `version.txt` first, then delete the FCM service if the
 new app has no push backend.
+
+---
+
+## 12. Appearance: theme preference and logo
+
+`MainActivity` owns a single appearance preference stored in the `arena_prefs`
+SharedPreferences file under `app_theme`:
+
+| Value | Meaning |
+|---|---|
+| `system` (default) | follow the Android light/dark mode |
+| `light` | always light |
+| `dark` | always dark |
+
+Resolution happens once in `setContent`: `light`/`dark` win, otherwise
+`isSystemInDarkTheme()` decides. The resolved boolean drives three things that
+must stay in sync:
+
+1. **Compose chrome** — `MyApplicationTheme(darkTheme = ...)` plus the sheet
+   palette (`sheetBackground`, `cardBackground`, `primaryText`,
+   `secondaryText`, `outline`, `buttonSurface`). Do not hardcode Slate colours
+   in new sheet UI.
+2. **System bars** — light status/navigation icons when the resolved theme is
+   dark, dark icons when it is light (`WindowCompat.getInsetsController`).
+3. **Rendered site** — `applyWebTheme()` sets the WebView background and injects
+   `#android-app-theme`. Dark mode leaves the page untouched (arena.ai is dark
+   by design) and only sets `color-scheme`; light mode inverts `html` with a CSS
+   filter and counter-inverts `img, picture, video, canvas, iframe, svg image`,
+   so the whole rendered site follows the setting. It runs at creation, after
+   every `onPageFinished` (through `rememberUpdatedState`, so navigation never
+   restores a stale theme) and whenever the preference changes.
+
+Logo variants:
+
+- `drawable/ic_arena_logo_dark.xml` — original white mark, used on dark
+  surfaces (named alias of `ic_arena_logo.xml`);
+- `drawable/ic_arena_logo_light.xml` — same geometry, `#0F172A` ink, used on
+  light surfaces.
+
+`SettingsBottomSheet` picks the variant from the **resolved** theme, so
+`system` behaves dynamically (the logo switches with the Android theme) while
+`light`/`dark` pin it. The launcher icon is separate: it always uses the white
+mark on the dark adaptive background (§6) and does not change at runtime.
+
+**Emoji policy**: emojis are allowed in `CHANGELOG.md` only. Do not add them to
+code, UI strings, docs, templates or release notes.

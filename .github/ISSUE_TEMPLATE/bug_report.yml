@@ -1,4 +1,4 @@
-name: "🐛 Bug Report"
+name: " Bug Report"
 description: Report a bug or unexpected behavior in Arena AI
 title: "[BUG]: "
 labels: ["bug"]
@@ -11,7 +11,7 @@ body:
   - type: textarea
     id: description
     attributes:
-      label: "🐛 Bug Description"
+      label: " Bug Description"
       description: |
         A clear and concise description of what the bug is.
       placeholder: |
@@ -21,7 +21,7 @@ body:
   - type: textarea
     id: steps
     attributes:
-      label: "🎬 Steps to Reproduce"
+      label: " Steps to Reproduce"
       description: |
         What steps did you take to encounter the issue?
       placeholder: |
@@ -34,7 +34,7 @@ body:
   - type: textarea
     id: expected
     attributes:
-      label: "🎯 Expected Behavior"
+      label: " Expected Behavior"
       description: |
         What did you expect to happen?
       placeholder: |
@@ -44,7 +44,7 @@ body:
   - type: input
     id: device
     attributes:
-      label: "📱 Device"
+      label: " Device"
       description: |
         What device are you using?
       placeholder: "e.g. Google Pixel 8, Samsung Galaxy S23, Xiaomi 14"
@@ -53,7 +53,7 @@ body:
   - type: input
     id: android_version
     attributes:
-      label: "🤖 Android Version"
+      label: " Android Version"
       description: |
         What Android version is installed on your device?
       placeholder: "e.g. Android 14, Android 13, HyperOS"
@@ -62,7 +62,7 @@ body:
   - type: dropdown
     id: app_version
     attributes:
-      label: "📦 App Version"
+      label: " App Version"
       description: |
         Select the app version where the bug occurs.
       options:
@@ -76,7 +76,7 @@ body:
   - type: dropdown
     id: install_source
     attributes:
-      label: "📥 Installation Source"
+      label: " Installation Source"
       description: |
         Where did you install the app from?
       options:
@@ -89,12 +89,12 @@ body:
   - type: textarea
     id: screenshots
     attributes:
-      label: "📸 Screenshots"
+      label: " Screenshots"
       description: |
         Drag and drop images or paste links here.
   - type: textarea
     id: context
     attributes:
-      label: "🛠️ Additional Context"
+      label: " Additional Context"
       description: |
         Any other helpful information (logs, custom settings, environment details, etc.).
