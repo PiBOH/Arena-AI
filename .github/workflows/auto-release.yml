@@ -10,6 +10,20 @@ on:
         required: false
         type: string
         default: ""
+      build_type:
+        description: "Cosa pubblicare: release (firmata), debug o both"
+        required: true
+        type: choice
+        options:
+          - release
+          - debug
+          - both
+        default: release
+      allow_unsigned:
+        description: "Se la firma manca, pubblica comunque un APK debug invece di fallire"
+        required: false
+        type: boolean
+        default: true
       dry_run:
         description: "Compila soltanto, senza pubblicare la release"
         required: false
@@ -46,13 +60,29 @@ jobs:
           VERSION_INPUT: ${{ inputs.version }}
         run: |
           set -euo pipefail
-          # version.txt: line 1 = version name, line 2 = version code, line 3 = channel.
-          read_value() { sed -n "${1}p" version.txt | tr -d '\r\n' | sed 's/#.*//' | xargs; }
+          # version.txt holds comment lines first, so read only the value lines,
+          # exactly like app/build.gradle.kts does (drop comments and blanks).
+          read_value() {
+            sed 's/#.*//' version.txt \
+              | tr -d '\r' \
+              | sed 's/^[[:space:]]*//; s/[[:space:]]*$//' \
+              | grep -v '^$' \
+              | sed -n "${1}p"
+          }
           VERSION="${VERSION_INPUT:-$(read_value 1)}"
           VERSION_CODE="$(read_value 2)"
           CHANNEL="$(read_value 3 | tr '[:upper:]' '[:lower:]')"
           VERSION="${VERSION#v}"
+          VERSION="${VERSION//[[:space:]]/}"
           CHANNEL="${CHANNEL:-stable}"
+          if [[ -z "$VERSION" ]]; then
+            echo "::error::version.txt non contiene una versione valida."
+            exit 1
+          fi
+          if [[ -z "$VERSION_CODE" ]]; then
+            echo "::error::version.txt non contiene un versionCode valido."
+            exit 1
+          fi
           if [[ "$CHANNEL" == "stable" ]]; then PRERELEASE=false; else PRERELEASE=true; fi
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "version_code=$VERSION_CODE" >> "$GITHUB_OUTPUT"
@@ -67,37 +97,112 @@ jobs:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
           STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+          MODE_INPUT: ${{ inputs.build_type }}
+          ALLOW_UNSIGNED_INPUT: ${{ inputs.allow_unsigned }}
         run: |
           set -euo pipefail
           chmod +x gradlew
-          if [[ -n "${KEYSTORE_BASE64:-}" ]]; then
-            echo "Keystore trovato: build release firmata."
-            printf '%s' "$KEYSTORE_BASE64" | base64 -d > my-upload-key.jks
-            export KEYSTORE_PATH="$PWD/my-upload-key.jks"
-            ./gradlew assembleRelease --no-daemon --stacktrace
-            APK_PATH="$(find app/build/outputs/apk/release -name '*.apk' -print -quit)"
-            VARIANT="release"
-          else
+          MODE="${MODE_INPUT:-release}"
+          ALLOW_UNSIGNED="${ALLOW_UNSIGNED_INPUT:-true}"
+          VERSION="${{ steps.version.outputs.version }}"
+          HAS_KEYSTORE=false
+          [[ -n "${KEYSTORE_BASE64:-}" ]] && HAS_KEYSTORE=true
+
+          ensure_debug_keystore() {
             # The project's debug signing config looks for ~/.android/debug.keystore,
             # which does not exist on a fresh runner: create it, or the build stops
             # in ValidateSigningTask before compiling anything.
-            echo "Secret KEYSTORE_BASE64 assente: genero una debug keystore usa-e-getta e compilo l'APK debug."
             mkdir -p "$HOME/.android"
-            keytool -genkeypair -noprompt \
-              -keystore "$HOME/.android/debug.keystore" \
-              -storetype JKS -alias androiddebugkey \
-              -storepass android -keypass android \
-              -keyalg RSA -keysize 2048 -validity 10000 \
-              -dname "CN=Android Debug,O=Android,C=US"
+            if [[ ! -f "$HOME/.android/debug.keystore" ]]; then
+              keytool -genkeypair -noprompt \
+                -keystore "$HOME/.android/debug.keystore" \
+                -storetype JKS -alias androiddebugkey \
+                -storepass android -keypass android \
+                -keyalg RSA -keysize 2048 -validity 10000 \
+                -dname "CN=Android Debug,O=Android,C=US"
+            fi
+          }
+
+          build_release() {
+            echo "Keystore trovato: compilo l'APK release firmato."
+            printf '%s' "$KEYSTORE_BASE64" | base64 -d > my-upload-key.jks
+            export KEYSTORE_PATH="$PWD/my-upload-key.jks"
+            ./gradlew assembleRelease --no-daemon --stacktrace
+            REL_APK="$(find app/build/outputs/apk/release -name '*.apk' -print -quit)"
+            [[ -n "$REL_APK" ]] || { echo "::error::APK release non trovato."; exit 1; }
+          }
+
+          build_debug() {
+            echo "Compilo l'APK debug."
+            ensure_debug_keystore
             ./gradlew assembleDebug --no-daemon --stacktrace
-            APK_PATH="$(find app/build/outputs/apk/debug -name '*.apk' -print -quit)"
-            VARIANT="debug"
-          fi
-          [[ -n "$APK_PATH" ]] || { echo "APK non trovato"; exit 1; }
-          ASSET="Arena-AI-v${{ steps.version.outputs.version }}-$VARIANT.apk"
-          cp "$APK_PATH" "$ASSET"
-          echo "asset=$ASSET" >> "$GITHUB_OUTPUT"
-          ls -lh "$ASSET"
+            DBG_APK="$(find app/build/outputs/apk/debug -name '*.apk' -print -quit)"
+            [[ -n "$DBG_APK" ]] || { echo "::error::APK debug non trovato."; exit 1; }
+          }
+
+          ASSETS=()
+          VARIANT=""
+
+          add_release_assets() {
+            # Same signed APK under a stable name and a versioned name.
+            cp "$REL_APK" "Arena-AI.apk"
+            cp "$REL_APK" "Arena-AI_v$VERSION.apk"
+            ASSETS+=("Arena-AI.apk" "Arena-AI_v$VERSION.apk")
+          }
+
+          add_debug_assets() {
+            cp "$DBG_APK" "Arena-AI-debug.apk"
+            cp "$DBG_APK" "Arena-AI_v$VERSION-debug.apk"
+            ASSETS+=("Arena-AI-debug.apk" "Arena-AI_v$VERSION-debug.apk")
+          }
+
+          case "$MODE" in
+            release)
+              if [[ "$HAS_KEYSTORE" == true ]]; then
+                build_release; add_release_assets
+                VARIANT="release firmata"
+              elif [[ "$ALLOW_UNSIGNED" == true ]]; then
+                echo "::warning::Secret di firma assenti: pubblico un APK debug al posto della release."
+                build_debug; add_debug_assets
+                VARIANT="debug (firma assente)"
+              else
+                echo "::error::Secret di firma assenti e allow_unsigned disattivato: nessun APK pubblicato."
+                exit 1
+              fi
+              ;;
+            debug)
+              build_debug; add_debug_assets
+              VARIANT="debug"
+              ;;
+            both)
+              if [[ "$HAS_KEYSTORE" == true ]]; then
+                build_release; add_release_assets
+                build_debug; add_debug_assets
+                VARIANT="release firmata + debug"
+              elif [[ "$ALLOW_UNSIGNED" == true ]]; then
+                echo "::warning::Secret di firma assenti: pubblico solo l'APK debug."
+                build_debug; add_debug_assets
+                VARIANT="debug (firma assente)"
+              else
+                echo "::error::Secret di firma assenti e allow_unsigned disattivato: nessun APK pubblicato."
+                exit 1
+              fi
+              ;;
+            *)
+              echo "::error::build_type non valido: $MODE (usa release, debug o both)."
+              exit 1
+              ;;
+          esac
+
+          [[ ${#ASSETS[@]} -gt 0 ]] || { echo "::error::Nessun APK da pubblicare."; exit 1; }
+          {
+            echo "assets<<ASSETS_EOF"
+            printf '%s\n' "${ASSETS[@]}"
+            echo "ASSETS_EOF"
+          } >> "$GITHUB_OUTPUT"
+          echo "variant=$VARIANT" >> "$GITHUB_OUTPUT"
+          echo "signed=$([[ "$VARIANT" == release* ]] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+          ls -lh "${ASSETS[@]}"
 
       - name: Extract changelog section
         id: changelog
@@ -131,12 +236,12 @@ jobs:
           name: Arena AI v${{ steps.version.outputs.version }}
           target_commitish: ${{ github.sha }}
           prerelease: ${{ steps.version.outputs.prerelease }}
-          files: ${{ steps.build.outputs.asset }}
+          files: ${{ steps.build.outputs.assets }}
           fail_on_unmatched_files: true
           body: |
             ## Arena AI v${{ steps.version.outputs.version }}
 
-            **Canale:** `${{ steps.version.outputs.channel }}` · **versionCode:** `${{ steps.version.outputs.version_code }}`
+            **Canale:** `${{ steps.version.outputs.channel }}` · **versionCode:** `${{ steps.version.outputs.version_code }}` · **Build:** ${{ steps.build.outputs.variant }}
 
             ${{ steps.changelog.outputs.section }}
 
