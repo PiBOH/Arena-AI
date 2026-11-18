@@ -10,10 +10,10 @@
 </p>
 
 <p align="center">
- <a href="https://github.com/PiBOH/Arena-AI/releases">
+ <a href="https://github.com/PiBOH/Arena-AI/releases/latest/download/Arena-AI.apk">
  <img src="https://img.shields.io/github/v/release/PiBOH/Arena-AI?include_prereleases&label=download&style=for-the-badge&color=4CAF50" alt="Download the latest release">
  </a>
- <a href="https://github.com/PiBOH/Arena-AI/releases/download/latest/Arena-AI.apk">
+ <a href="https://github.com/PiBOH/Arena-AI/releases/latest/download/Arena-AI.apk">
  <img src="https://img.shields.io/github/downloads/PiBOH/Arena-AI/total?style=for-the-badge&color=blue" alt="Total downloads">
  </a>
  <a href="LICENSE">
@@ -108,8 +108,8 @@ It is built with **Kotlin** and **Jetpack Compose**, targets **Android 16 (SDK 3
 
 ## 📲 Install
 
-1. Open the [**Releases**](https://github.com/PiBOH/Arena-AI/releases) page.
-2. Download the latest `Arena-AI-v*.apk`.
+1. Open the [**latest APK**](https://github.com/PiBOH/Arena-AI/releases/latest/download/Arena-AI.apk) directly, or browse the [Releases](https://github.com/PiBOH/Arena-AI/releases) page.
+2. Download the latest `Arena-AI.apk` (or the versioned `Arena-AI-v*.apk`).
 3. Allow installation from unknown sources when Android asks.
 4. Open the app — the Arena loads immediately.
 
