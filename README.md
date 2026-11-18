@@ -25,10 +25,9 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Android-7.0%2B-3DDC84?style=flat-square&logo=android&logoColor=white" alt="Android 7.0+">
+  <img src="https://img.shields.io/badge/Android-7.0%2B-3DDC84?style=flat-square" alt="Android 7.0+">
   <img src="https://img.shields.io/badge/Kotlin-2.2-7F52FF?style=flat-square&logo=kotlin&logoColor=white" alt="Kotlin">
   <img src="https://img.shields.io/badge/Jetpack%20Compose-Material%203-4285F4?style=flat-square&logo=jetpackcompose&logoColor=white" alt="Jetpack Compose">
-  <img src="https://img.shields.io/badge/Firebase-Messaging-FFCA28?style=flat-square&logo=firebase&logoColor=black" alt="Firebase Messaging">
 </p>
 
 ---
@@ -70,9 +69,9 @@ It is built with **Kotlin** and **Jetpack Compose**, targets **Android 16 (SDK 3
 <td width="50%">
 
 ### 🔔 Native notifications
-- Push notifications through Firebase Cloud Messaging for model and leaderboard news.
-- Notification taps open the app directly on the linked page.
 - Download notifications with percentage, transfer speed and time remaining.
+- Completion and failure alerts, with a tap to open the downloaded file.
+- No advertising, promotional or tracking notifications.
 
 </td>
 <td width="50%">
@@ -178,7 +177,6 @@ Without `KEYSTORE_BASE64` the workflow still succeeds and publishes a debug-sign
 app/src/main/java/com/example/
 ├── MainActivity.kt            # Compose UI, WebView, downloads, settings
 ├── ReleaseUpdateChecker.kt    # GitHub release check and version comparison
-├── MyFirebaseMessagingService.kt
 └── ui/theme/                  # Material 3 colors and typography
 
 .github/workflows/
@@ -189,7 +187,7 @@ app/src/main/java/com/example/
 
 ## 🛡️ Privacy
 
-Arena AI collects nothing. There is no analytics, no telemetry and no advertising. Cookies and local storage belong to the arena.ai session you sign in with, and they stay on your device. The only network calls made by the app itself are the optional GitHub release check and Firebase Cloud Messaging.
+Arena AI collects nothing. There is no analytics, no telemetry and no advertising. Cookies and local storage belong to the arena.ai session you sign in with, and they stay on your device. The only network call made by the app itself is the optional GitHub release check.
 
 ---
 
