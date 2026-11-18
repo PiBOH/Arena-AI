@@ -10,6 +10,11 @@ on:
         required: false
         type: string
         default: ""
+      dry_run:
+        description: "Compila soltanto, senza pubblicare la release"
+        required: false
+        type: boolean
+        default: false
   push:
     branches: [main]
     tags-ignore: ["**"]
@@ -25,12 +30,12 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
       - name: Set up JDK 21
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: "21"
@@ -73,7 +78,17 @@ jobs:
             APK_PATH="$(find app/build/outputs/apk/release -name '*.apk' -print -quit)"
             VARIANT="release"
           else
-            echo "Secret KEYSTORE_BASE64 assente: build di un APK debug."
+            # The project's debug signing config looks for ~/.android/debug.keystore,
+            # which does not exist on a fresh runner: create it, or the build stops
+            # in ValidateSigningTask before compiling anything.
+            echo "Secret KEYSTORE_BASE64 assente: genero una debug keystore usa-e-getta e compilo l'APK debug."
+            mkdir -p "$HOME/.android"
+            keytool -genkeypair -noprompt \
+              -keystore "$HOME/.android/debug.keystore" \
+              -storetype JKS -alias androiddebugkey \
+              -storepass android -keypass android \
+              -keyalg RSA -keysize 2048 -validity 10000 \
+              -dname "CN=Android Debug,O=Android,C=US"
             ./gradlew assembleDebug --no-daemon --stacktrace
             APK_PATH="$(find app/build/outputs/apk/debug -name '*.apk' -print -quit)"
             VARIANT="debug"
@@ -109,6 +124,7 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
       - name: Publish GitHub release
+        if: ${{ !inputs.dry_run }}
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.version.outputs.tag }}
