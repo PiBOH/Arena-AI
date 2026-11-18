@@ -1435,9 +1435,9 @@ fun SettingsBottomSheet(
     val sheetBackground = if (darkTheme) Color(0xFF0F172A) else Color(0xFFF8FAFC)
     val cardBackground = if (darkTheme) Color(0xFF1E293B) else Color(0xFFFFFFFF)
     val primaryText = if (darkTheme) Color.White else Color(0xFF0F172A)
-    val secondaryText = if (darkTheme) secondaryText else outline
-    val outline = if (darkTheme) outline else Color(0xFFCBD5E1)
-    val buttonSurface = if (darkTheme) outline else Color(0xFFE2E8F0)
+    val secondaryText = if (darkTheme) Color(0xFF94A3B8) else Color(0xFF475569)
+    val outline = if (darkTheme) Color(0xFF475569) else Color(0xFFCBD5E1)
+    val buttonSurface = if (darkTheme) Color(0xFF334155) else Color(0xFFE2E8F0)
 
     // Notification fields for testing
     var pushTitle by remember { mutableStateOf("Super Leaderboard!") }
