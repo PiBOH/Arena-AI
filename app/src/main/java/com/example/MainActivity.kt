@@ -1482,7 +1482,7 @@ fun SettingsBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
         containerColor = sheetBackground
-        contentColor = primaryText
+        contentColor = primaryText,
     ) {
         Column(
             modifier = Modifier
@@ -1527,7 +1527,7 @@ fun SettingsBottomSheet(
                                 text = "Appearance",
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 16.sp,
-                                color = primaryText
+                                color = primaryText,
                             )
                             Text(
                                 text = "System, light or dark. The site and the logo follow your choice.",
@@ -1686,7 +1686,7 @@ fun SettingsBottomSheet(
                         text = "Performance & Fluidity",
                         fontWeight = FontWeight.Bold,
                         fontSize = 16.sp,
-                        color = primaryText
+                        color = primaryText,
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
@@ -1756,7 +1756,7 @@ fun SettingsBottomSheet(
                             text = "App Information",
                             fontWeight = FontWeight.Bold,
                             fontSize = 16.sp,
-                            color = primaryText
+                            color = primaryText,
                         )
                     }
 
@@ -1774,7 +1774,7 @@ fun SettingsBottomSheet(
                         )
                         Text(
                             text = "v$versionName",
-                            color = primaryText
+                            color = primaryText,
                             fontWeight = FontWeight.Bold,
                             fontSize = 13.sp
                         )
@@ -1841,7 +1841,7 @@ fun SettingsBottomSheet(
                         text = "About LMSYS Chatbot Arena",
                         fontWeight = FontWeight.Bold,
                         fontSize = 13.sp,
-                        color = primaryText
+                        color = primaryText,
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
@@ -1875,7 +1875,7 @@ fun SettingsBottomSheet(
                             text = "GitHub Community & Feedback",
                             fontWeight = FontWeight.Bold,
                             fontSize = 16.sp,
-                            color = primaryText
+                            color = primaryText,
                         )
                     }
                     
