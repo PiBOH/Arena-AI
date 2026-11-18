@@ -145,7 +145,7 @@ Do not reintroduce positional `sed` reads that skip the filtering.
  silent; a manual check that finds nothing shows "already latest".
  9. `BackHandler`: goes back in the WebView, otherwise requires two presses
  within 2 s to exit.
- 10. `Scaffold` → `Box` (slate `0xFF0F172A`, `imePadding`) → either
+ 10. `Scaffold` → `Box` (neutral `0xFF0A0A0A`/`0xFFFFFFFF`, `imePadding`) → either
   `WebViewContainer` or `OfflineScreen`, plus a 3 dp top
   `LinearProgressIndicator`.
  11. Hosts `SettingsBottomSheet` and `UpdateAvailableDialog` when needed.
@@ -280,10 +280,10 @@ Downloads channel never depends on it.
 
 `Theme.kt` defines Material 3 dark/light schemes from `Color.kt` and supports
 dynamic color on Android 12+, but `MainActivity` always calls
-`MyApplicationTheme(darkTheme = true, dynamicColor = false)`. `Type.kt` only
-overrides `bodyLarge`. The real palette is the slate/sky-blue set used inline
-in `MainActivity` (`0xFF0F172A`, `0xFF1E293B`, `0xFF38BDF8`, `0xFF94A3B8`,
-`0xFFEF4444`).
+`MyApplicationTheme(darkTheme = ..., dynamicColor = false)`. `Type.kt` only
+overrides `bodyLarge`. The real palette is the neutral black/white set used inline
+in `MainActivity` (`0xFF0A0A0A`, `0xFF141414`, `0xFFFAFAFA`,
+`0xFFA1A1AA`, `0xFFDC2626`), mirrored by the settings sheet palette.
 
 ---
 
@@ -300,9 +300,11 @@ visible. The logo lives in `ic_arena_logo.xml` and is wrapped by
 Inset per side `i` leaves `1 - 2i` of the canvas: `27.5%` → **45% of the
 original size**, i.e. **55% smaller** (the first release shrank it 25% with a
 12.5% inset; 1.1.9 adds another 30%, and the changelog states 25 + 30 = 55).
-Both `mipmap-anydpi-v26/ic_launcher.xml` and `ic_launcher_round.xml` point
-foreground and monochrome at the scaled wrapper. To resize again, change only
-the inset, never the source drawable.
+Both `mipmap-anydpi-v26/ic_launcher.xml` and `ic_launcher_round.xml` point only
+the foreground at the scaled wrapper. They intentionally have **no
+`<monochrome>` layer**: the launcher icon keeps the same white mark on its dark
+background instead of being recolored as a themed icon when the app theme
+changes. To resize again, change only the inset, never the source drawable.
 
 The legacy `mipmap-*/ic_launcher*.webp` files (API 24–25) are **corrupt**: their
 VP8X headers declare impossible canvas sizes, so Pillow and Android tooling
@@ -316,13 +318,14 @@ do not regenerate them unless you can verify the output on a real API 24 device.
 Triggers:
 
 - **push to `main`** whose head commit message starts with `v` (for example
-  `v1.1.9 …`) — same signal as the other PiBOH repositories;
+  `v1.1.9 …`) — same signal as the other PiBOH repositories. A push has no
+  workflow inputs, so it builds **both** the signed release and the debug APK;
 - **manual dispatch**, with inputs:
 
 | Input | Values | Meaning |
 |---|---|---|
 | `version` | string | override the version read from `version.txt` |
-| `build_type` | `release` (default), `debug`, `both` | what to build and publish |
+| `build_type` | `release` (manual default), `debug`, `both` | what to build and publish (a `v` push always uses `both`) |
 | `allow_unsigned` | boolean, default `true` | with no signing secret, publish a debug APK instead of failing |
 | `dry_run` | boolean, default `false` | compile only, skip the release step |
 
@@ -338,7 +341,7 @@ Steps:
   `KEYSTORE_PATH`, run `assembleRelease`;
  - `debug`: create `~/.android/debug.keystore` if missing, run
   `assembleDebug`;
- - `both`: both builds;
+ - `both` (the default for a `v` push): both builds;
  - no keystore + `allow_unsigned`: debug build only, with a warning;
  - no keystore + `allow_unsigned=false`: hard failure.
 4. **Assets**: the built file is copied under the published names —
@@ -497,31 +500,45 @@ Resolution happens once in `setContent`: `light`/`dark` win, otherwise
 `isSystemInDarkTheme()` decides. The resolved boolean drives three things that
 must stay in sync:
 
-1. **Compose chrome** — `MyApplicationTheme(darkTheme = ...)` plus the sheet
- palette (`sheetBackground`, `cardBackground`, `primaryText`,
-  `secondaryText`, `outline`, `buttonSurface`). Do not hardcode Slate colours
- in new sheet UI.
+1. **Compose chrome** — `MyApplicationTheme(darkTheme = ...)` plus the sheet  palette (`sheetBackground`, `cardBackground`, `primaryText`,
+  `secondaryText`, `outline`, `buttonSurface`). Do not reintroduce the old
+  slate/sky-blue colours in new sheet UI.
 2. **System bars** — light status/navigation icons when the resolved theme is
  dark, dark icons when it is light (`WindowCompat.getInsetsController`).
 3. **Rendered site** — `applyWebTheme()` sets the WebView background and injects
-  `#android-app-theme`. Dark mode leaves the page untouched (arena.ai is dark
- by design) and only sets `color-scheme`; light mode inverts `html` with a CSS
- filter and counter-inverts `img, picture, video, canvas, iframe, svg image`,
- so the whole rendered site follows the setting. It runs at creation, after
- every `onPageFinished` (through `rememberUpdatedState`, so navigation never
- restores a stale theme) and whenever the preference changes.
+   the theme sync script, which only runs on `arena.ai`/`lmarena.ai` (external
+   auth pages are never touched). The script asks the site for its **native**
+   theme first: it writes the current mode (`light`/`dark`/`system`) into the
+   theme keys already present in `localStorage` plus the next-themes default
+   `theme`, dispatches a storage event, sets `data-theme`, `data-color-mode`,
+   `color-scheme` and the `light`/`dark` html class, then reloads once per
+   resolved theme so a provider such as next-themes can boot with its own
+   palette. A CSS inversion (`#android-app-theme`) is applied **only** when the
+   page polarity still does not match the request, so a site without a light
+   theme stays usable. A `sessionStorage` guard prevents reload loops. Theme
+   sync runs at creation, after every `onPageFinished` (through
+   `rememberUpdatedState`) and whenever the preference changes.
 
-Logo variants:
+The settings sheet uses the neutral palette defined inline (`sheetBackground`
+`#0A0A0A`/`#FFFFFF`, `cardBackground`, `primaryText`, `secondaryText`,
+`outline`, `buttonSurface`): near-black/white surfaces, muted `Icons.Outlined.*`
+line icons, pill buttons (`RoundedCornerShape(50)`) and **no colored accent**,
+mirroring arena.ai on mobile. Do not reintroduce the old slate/sky-blue colors.
 
-- `drawable/ic_arena_logo_dark.xml` — original white mark, used on dark
- surfaces (named alias of `ic_arena_logo.xml`);
-- `drawable/ic_arena_logo_light.xml` — same geometry, `#0F172A` ink, used on
- light surfaces.
+Theme assets for the sheet:
 
-`SettingsBottomSheet` picks the variant from the **resolved** theme, so
-`system` behaves dynamically (the logo switches with the Android theme) while
-`light`/`dark` pin it. The launcher icon is separate: it always uses the white
-mark on the dark adaptive background (§6) and does not change at runtime.
+- `drawable/ic_arena_logo_dark.xml` — white mark for dark surfaces (alias of
+   `ic_arena_logo.xml`);
+- `drawable/ic_arena_logo_light.xml` — same geometry with `#0F172A` ink for the
+   sheet on light surfaces.
 
-**Emoji policy**: emojis are allowed in `CHANGELOG.md` only. Do not add them to
-code, UI strings, docs, templates or release notes.
+`SettingsBottomSheet` picks the variant from the **resolved** theme. The
+**launcher icon** is deliberately different and theme-independent:
+`mipmap-anydpi-v26/ic_launcher*.xml` always shows the white mark on the dark
+adaptive background, has **no `<monochrome>` layer**, and therefore keeps the
+same colors when the app theme changes. Never point it at the theme-dependent
+logo drawables.
+
+**Emoji policy**: emojis are **required** in `README.md` and `CHANGELOG.md`
+(section headings and user-facing bullets). Do not add them to Kotlin/UI
+strings, other docs, templates or release notes.

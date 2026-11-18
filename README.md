@@ -32,7 +32,7 @@
 
 ---
 
-## About Arena AI
+## 🏟️ About Arena AI
 
 **Arena AI** is a lightweight, native Android shell for [LMSYS Chatbot Arena](https://arena.ai): blind side-by-side comparisons of the world's best language models. It wraps the site in a tuned `WebView` and adds the parts a mobile browser cannot give you — native downloads with progress notifications, a dark Material 3 interface, and automatic update checks straight from GitHub.
 
@@ -48,16 +48,17 @@ It is built with **Kotlin** and **Jetpack Compose**, targets **Android 16 (SDK 3
 <tr valign="top">
 <td width="50%">
 
-### Fast and native
+### ⚡ Fast and native
 - Full-screen tuned `WebView`: no address bar, no browser chrome, no ads.
-- Dark Material 3 interface with edge-to-edge layout.
+- 🌗 System, Light and Dark appearance, applied to the rendered site too.
+- Material 3 interface with edge-to-edge layout.
 - Hardware-accelerated rendering with a software fallback for older devices.
 - Custom in-page menu with back, forward, reload and settings.
 
 </td>
 <td width="50%">
 
-### The whole Arena
+### 🏆 The whole Arena
 - Blind battles, leaderboards, direct chats and side-by-side model comparisons.
 - Google, Hugging Face, GitHub and Apple sign-in handled inside the app.
 - Session, cookies and login state persist between launches.
@@ -68,7 +69,7 @@ It is built with **Kotlin** and **Jetpack Compose**, targets **Android 16 (SDK 3
 <tr valign="top">
 <td width="50%">
 
-### Native notifications
+### 🔔 Native notifications
 - Download notifications with percentage, transfer speed and time remaining.
 - Completion and failure alerts, with a tap to open the downloaded file.
 - No advertising, promotional or tracking notifications.
@@ -76,7 +77,7 @@ It is built with **Kotlin** and **Jetpack Compose**, targets **Android 16 (SDK 3
 </td>
 <td width="50%">
 
-### Downloads and updates
+### ⬇️ Downloads and updates
 - Native `DownloadManager` integration with a custom progress notification.
 - Clear cache and cookies from the settings sheet.
 - **Automatic GitHub release checks** on startup, plus a manual *Check for updates* action, with a direct APK link.
@@ -86,7 +87,7 @@ It is built with **Kotlin** and **Jetpack Compose**, targets **Android 16 (SDK 3
 <tr valign="top">
 <td width="50%">
 
-### Privacy
+### 🛡️ Privacy
 - No analytics, no trackers, no third-party advertising SDKs.
 - Only the permissions the app actually needs: internet, network state, notifications and downloads.
 - Settings, cookies and cache stay on your device.
@@ -94,7 +95,7 @@ It is built with **Kotlin** and **Jetpack Compose**, targets **Android 16 (SDK 3
 </td>
 <td width="50%">
 
-### Built for contributors
+### 🧩 Built for contributors
 - Centralized versioning in `version.txt`.
 - Automatic GitHub releases from CI on every `v*` commit.
 - MIT licensed, with beginner-friendly issue templates.
@@ -105,7 +106,7 @@ It is built with **Kotlin** and **Jetpack Compose**, targets **Android 16 (SDK 3
 
 ---
 
-## Install
+## 📲 Install
 
 1. Open the [**Releases**](https://github.com/PiBOH/Arena-AI/releases) page.
 2. Download the latest `Arena-AI-v*.apk`.
@@ -116,7 +117,7 @@ It is built with **Kotlin** and **Jetpack Compose**, targets **Android 16 (SDK 3
 
 ---
 
-## Build from source
+## 🛠️ Build from source
 
 **Requirements:** [JDK 21](https://adoptium.net/), Android SDK 36 and Android Studio (or the command-line tools).
 
@@ -142,7 +143,7 @@ The APK is written to `app/build/outputs/apk/`.
 
 ---
 
-## Versioning and automatic releases
+## 🚀 Versioning and automatic releases
 
 The single source of truth for the version is **`version.txt`**:
 
@@ -154,7 +155,7 @@ stable # release channel (stable / beta)
 
 Gradle reads it for `versionName` and `versionCode`, and the `Auto Release` workflow reads it to tag releases.
 
-- Push a commit to `main` whose message **starts with `v`** (for example `v1.1.9`) and the workflow builds the APK and publishes a GitHub release.
+- Push a commit to `main` whose message **starts with `v`** (for example `v1.1.9`) and the workflow builds **both** the signed release and the debug APK, then publishes a GitHub release.
 - You can also run **Actions → Auto Release → Run workflow** manually.
 - If `CHANGELOG.md` has a section for that version, it becomes the release notes and is attached to the release as `changelog.md`; otherwise the recent commits are used.
 - The changelog is optional, the release always works.
@@ -171,7 +172,7 @@ Without `KEYSTORE_BASE64` the workflow still succeeds and publishes a debug-sign
 
 ---
 
-## Project structure
+## 🗂️ Project structure
 
 ```text
 app/src/main/java/com/example/
@@ -185,19 +186,19 @@ app/src/main/java/com/example/
 
 ---
 
-## Privacy
+## 🔒 Privacy
 
 Arena AI collects nothing. There is no analytics, no telemetry and no advertising. Cookies and local storage belong to the arena.ai session you sign in with, and they stay on your device. The only network call made by the app itself is the optional GitHub release check.
 
 ---
 
-## Disclaimer
+## ⚠️ Disclaimer
 
 This project and its contents are **not affiliated with, funded, authorized, endorsed by, or in any way associated with** LMSYS, UC Berkeley, arena.ai, or any of their affiliates and subsidiaries. All trademarks and service marks belong to their respective owners. Arena AI is an independent project made for personal and educational use.
 
 ---
 
-## License
+## 📄 License
 
 Released under the [MIT License](LICENSE).
 
@@ -221,7 +222,7 @@ Report bugs, propose features or contribute code on GitHub.
 
 <br><br>
 
-<sub>Made with by <a href="https://piboh.github.io/">PiBOH</a></sub><br>
-<sub> Star this repo if you find it useful!</sub>
+<sub>Made with ❤️ by <a href="https://piboh.github.io/">PiBOH</a></sub><br>
+<sub>⭐ Star this repo if you find it useful!</sub>
 
 </div>

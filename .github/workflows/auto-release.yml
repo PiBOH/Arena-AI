@@ -102,7 +102,8 @@ jobs:
         run: |
           set -euo pipefail
           chmod +x gradlew
-          MODE="${MODE_INPUT:-release}"
+          # A v-prefixed push has no inputs: publish both variants there.
+          MODE="${MODE_INPUT:-both}"
           ALLOW_UNSIGNED="${ALLOW_UNSIGNED_INPUT:-true}"
           VERSION="${{ steps.version.outputs.version }}"
           HAS_KEYSTORE=false

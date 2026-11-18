@@ -53,6 +53,40 @@ body.
   4096 -validity 10000` and stored only in `.secrets/` plus GitHub secrets.
 - `CHANGELOG.md` split into a user-facing file and this engineering log.
 
+### Appearance follow-up (1.1.9 re-release)
+
+- **Native light theme**: arena.ai is behind Cloudflare, so its theme keys
+  cannot be inspected from CI. The WebView now tries the standard provider
+  mechanism instead of assuming one key: it writes `light`/`dark`/`system` to
+  every existing `localStorage` key matching `/theme/i` plus `theme`
+  (next-themes default), dispatches a `storage` event, sets `data-theme`,
+  `data-color-mode`, `color-scheme` and the `light`/`dark` class, and reloads
+  once per resolved theme so the site boots with its own palette. A
+  `sessionStorage` guard (`arena-theme-sync`) prevents reload loops; the CSS
+  inversion is now a fallback applied only when the computed body background
+  still has the wrong polarity. The script is limited to
+  `arena.ai`/`lmarena.ai`, so OAuth pages are never modified.
+- **Failed first attempt**: the first 1.1.9 build inverted every light page with
+  a CSS filter. It was published, but it was not the site's own theme; this
+  release replaces it with the native-first approach above and keeps the filter
+  only as a safety net.
+- **Settings palette**: the sheet used Slate plus `#38BDF8` (sky blue) accents.
+  Replaced with the neutral near-black/white palette, outlined Material icons,
+  pill buttons and 12 dp cards to match arena.ai on mobile. The in-page
+  "App Options" menu CSS was neutralised the same way.
+- **Build failures before this commit**: two automated 1.1.9 runs failed with
+  `Unresolved reference 'contentColor'` (MainActivity.kt:1485) and
+  `Unresolved reference 'fontWeight'` (1778). Cause: the bulk regex that
+  replaced hardcoded palette values also stripped trailing commas in
+  `containerColor = sheetBackground` and `color = primaryText`. Fixed by
+  restoring the commas in `063e2c3` and `0688d88`.
+- **Launcher icon**: the adaptive icon no longer declares `<monochrome>`, so
+  Android's themed-icon recolouring cannot change it with the app/system theme.
+  The settings sheet still swaps `ic_arena_logo_dark`/`ic_arena_logo_light` for
+  contrast on its own surfaces.
+- **Release default**: a `v` push has no `build_type` input; the workflow now
+  defaults to `both`, so 1.1.9 publishes the signed release and the debug APK.
+
 ### Known noise
 
 - Release builds log
