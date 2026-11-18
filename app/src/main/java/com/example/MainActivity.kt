@@ -1481,7 +1481,7 @@ fun SettingsBottomSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = sheetBackground
+        containerColor = sheetBackground,
         contentColor = primaryText,
     ) {
         Column(
