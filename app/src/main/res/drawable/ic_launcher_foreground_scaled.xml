@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 12.5% inset on every side = the launcher logo is drawn at 75% of its
-     previous size (25% smaller) inside the 108dp adaptive-icon canvas. -->
+<!-- 27.5% inset on every side = the launcher logo is drawn at 45% of its
+     original size (55% smaller: the previous 25% plus a further 30%) inside
+     the 108dp adaptive-icon canvas. -->
 <inset xmlns:android="http://schemas.android.com/apk/res/android"
     android:drawable="@drawable/ic_arena_logo"
-    android:inset="12.5%" />
+    android:inset="27.5%" />

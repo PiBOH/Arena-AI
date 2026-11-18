@@ -20,7 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - **"I'm not a robot" verification no longer blocks the app**: Cloudflare Turnstile, hCaptcha and challenge-platform URLs are now handled inside the WebView instead of being sent to the external browser, where the verification overlay used to stay stuck on top of the page. Challenge popups are rendered in the same WebView as well.
-- **Launcher icon size**: the adaptive icon logo is now drawn 25% smaller, so it no longer looks oversized in the Android app list.
+- **Launcher icon size**: the adaptive icon logo is now drawn 55% smaller (the previous 25% plus a further 30%, 25 + 30 = 55), so it no longer looks oversized in the Android app list.
 
 ---
 
