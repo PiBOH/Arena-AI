@@ -1,5 +1,5 @@
-name: "✨ Feature Request / Proposta Funzionalità"
-description: Suggest an idea or improvement for Arena AI / Suggerisci un'idea o miglioramento
+name: "✨ Feature Request"
+description: Suggest an idea or improvement for Arena AI
 title: "[FEATURE]: "
 labels: ["enhancement"]
 assignees: []
@@ -7,49 +7,43 @@ body:
   - type: markdown
     attributes:
       value: |
-        Hai un'idea per rendere Arena AI migliore? Condividila con noi compilando questo modulo!
-        *Have an idea to make Arena AI better? Share it with us by filling out this form!*
+        Have an idea to make Arena AI better? Share it with us by filling out this form!
   - type: textarea
     id: proposal
     attributes:
-      label: "💡 Feature Proposal / Proposta di Funzionalità"
+      label: "💡 Feature Proposal"
       description: |
         Is your feature request related to a problem? Please describe.
-        *La tua proposta è legata a un problema specifico? Descrivilo qui.*
-      placeholder: "e.g. Sarebbe comodo poter selezionare rapidamente..."
+      placeholder: "e.g. It would be handy to quickly select..."
     validations:
       required: true
   - type: textarea
     id: solution
     attributes:
-      label: "🚀 Desired Solution / Soluzione Desiderata"
+      label: "🚀 Desired Solution"
       description: |
         A clear and concise description of what you want to happen or see in the app.
-        *Una descrizione chiara e concisa di come vorresti che funzionasse la nuova caratteristica.*
-      placeholder: "e.g. Vorrei che ci fosse un pulsante per..."
+      placeholder: "e.g. I would like a button that..."
     validations:
       required: true
   - type: textarea
     id: design
     attributes:
-      label: "🎨 Design or Flow Mockups / Bozzetti o Idee di Design"
+      label: "🎨 Design or Flow Mockups"
       description: |
         If applicable, describe how you imagine the UI layout, components, or screens.
-        *Se possibile, descrivi come immagini l'interfaccia utente o il flusso delle schermate.*
   - type: textarea
     id: usecase
     attributes:
-      label: "👥 Use Case / Caso d'Uso"
+      label: "👥 Use Case"
       description: |
         Explain why this feature would be useful to you and other users.
-        *Spiega perché questa funzionalità sarebbe utile per te e per gli altri utenti.*
-      placeholder: "e.g. Questo aiuterebbe gli utenti che vogliono salvare..."
+      placeholder: "e.g. This would help users who want to save..."
     validations:
       required: true
   - type: textarea
     id: context
     attributes:
-      label: "🛠️ Additional Context / Contesto Aggiuntivo"
+      label: "🛠️ Additional Context"
       description: |
         Add any other context, screenshots, or references here.
-        *Aggiungi qualsiasi altro contesto, screenshot o riferimento qui.*

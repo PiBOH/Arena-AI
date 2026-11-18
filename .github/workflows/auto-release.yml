@@ -6,12 +6,12 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Versione da rilasciare (vuoto = version.txt)"
+        description: "Version to release (empty = read version.txt)"
         required: false
         type: string
         default: ""
       build_type:
-        description: "Cosa pubblicare: release (firmata), debug o both"
+        description: "What to publish: signed release, debug, or both"
         required: true
         type: choice
         options:
@@ -20,12 +20,12 @@ on:
           - both
         default: release
       allow_unsigned:
-        description: "Se la firma manca, pubblica comunque un APK debug invece di fallire"
+        description: "When signing secrets are missing, publish a debug APK instead of failing"
         required: false
         type: boolean
         default: true
       dry_run:
-        description: "Compila soltanto, senza pubblicare la release"
+        description: "Build only, skip publishing the release"
         required: false
         type: boolean
         default: false
@@ -76,11 +76,11 @@ jobs:
           VERSION="${VERSION//[[:space:]]/}"
           CHANNEL="${CHANNEL:-stable}"
           if [[ -z "$VERSION" ]]; then
-            echo "::error::version.txt non contiene una versione valida."
+            echo "::error::version.txt does not contain a valid version."
             exit 1
           fi
           if [[ -z "$VERSION_CODE" ]]; then
-            echo "::error::version.txt non contiene un versionCode valido."
+            echo "::error::version.txt does not contain a valid versionCode."
             exit 1
           fi
           if [[ "$CHANNEL" == "stable" ]]; then PRERELEASE=false; else PRERELEASE=true; fi
@@ -124,20 +124,20 @@ jobs:
           }
 
           build_release() {
-            echo "Keystore trovato: compilo l'APK release firmato."
+            echo "Signing keystore found: building the signed release APK."
             printf '%s' "$KEYSTORE_BASE64" | base64 -d > my-upload-key.jks
             export KEYSTORE_PATH="$PWD/my-upload-key.jks"
             ./gradlew assembleRelease --no-daemon --stacktrace
             REL_APK="$(find app/build/outputs/apk/release -name '*.apk' -print -quit)"
-            [[ -n "$REL_APK" ]] || { echo "::error::APK release non trovato."; exit 1; }
+            [[ -n "$REL_APK" ]] || { echo "::error::Release APK not found."; exit 1; }
           }
 
           build_debug() {
-            echo "Compilo l'APK debug."
+            echo "Building the debug APK."
             ensure_debug_keystore
             ./gradlew assembleDebug --no-daemon --stacktrace
             DBG_APK="$(find app/build/outputs/apk/debug -name '*.apk' -print -quit)"
-            [[ -n "$DBG_APK" ]] || { echo "::error::APK debug non trovato."; exit 1; }
+            [[ -n "$DBG_APK" ]] || { echo "::error::Debug APK not found."; exit 1; }
           }
 
           ASSETS=()
@@ -160,13 +160,13 @@ jobs:
             release)
               if [[ "$HAS_KEYSTORE" == true ]]; then
                 build_release; add_release_assets
-                VARIANT="release firmata"
+                VARIANT="signed release"
               elif [[ "$ALLOW_UNSIGNED" == true ]]; then
-                echo "::warning::Secret di firma assenti: pubblico un APK debug al posto della release."
+                echo "::warning::Signing secrets missing: publishing a debug APK instead of the release."
                 build_debug; add_debug_assets
                 VARIANT="debug (firma assente)"
               else
-                echo "::error::Secret di firma assenti e allow_unsigned disattivato: nessun APK pubblicato."
+                echo "::error::Signing secrets missing and allow_unsigned disabled: no APK published."
                 exit 1
               fi
               ;;
@@ -178,23 +178,23 @@ jobs:
               if [[ "$HAS_KEYSTORE" == true ]]; then
                 build_release; add_release_assets
                 build_debug; add_debug_assets
-                VARIANT="release firmata + debug"
+                VARIANT="signed release + debug"
               elif [[ "$ALLOW_UNSIGNED" == true ]]; then
-                echo "::warning::Secret di firma assenti: pubblico solo l'APK debug."
+                echo "::warning::Signing secrets missing: publishing the debug APK only."
                 build_debug; add_debug_assets
                 VARIANT="debug (firma assente)"
               else
-                echo "::error::Secret di firma assenti e allow_unsigned disattivato: nessun APK pubblicato."
+                echo "::error::Signing secrets missing and allow_unsigned disabled: no APK published."
                 exit 1
               fi
               ;;
             *)
-              echo "::error::build_type non valido: $MODE (usa release, debug o both)."
+              echo "::error::Invalid build_type: $MODE (use release, debug or both)."
               exit 1
               ;;
           esac
 
-          [[ ${#ASSETS[@]} -gt 0 ]] || { echo "::error::Nessun APK da pubblicare."; exit 1; }
+          [[ ${#ASSETS[@]} -gt 0 ]] || { echo "::error::No APK to publish."; exit 1; }
           {
             echo "assets<<ASSETS_EOF"
             printf '%s\n' "${ASSETS[@]}"
@@ -212,16 +212,25 @@ jobs:
           # version it becomes the release body, otherwise the recent commits do.
           VERSION="${{ steps.version.outputs.version }}"
           SECTION=""
+          HEADING=""
           if [[ -f CHANGELOG.md ]]; then
             SECTION="$(awk -v v="$VERSION" '
               index($0, "## [" v "]") == 1 { found = 1; next }
               found && /^## / { exit }
               found { print }
             ' CHANGELOG.md | sed '/./,$!d')"
+            HEADING="$(grep -m1 -F "## [$VERSION]" CHANGELOG.md || true)"
           fi
           if [[ -z "$SECTION" ]]; then
             SECTION="$(git log --pretty=format:'- %s' -n 30 --no-merges)"
+            [[ -n "$HEADING" ]] || HEADING="## $VERSION"
           fi
+          # Release asset, like 1.1.8: only the notes for this version.
+          {
+            echo "$HEADING"
+            echo
+            echo "$SECTION"
+          } > changelog.md
           {
             echo "section<<CHANGELOG_EOF"
             echo "$SECTION"
@@ -236,16 +245,20 @@ jobs:
           name: Arena AI v${{ steps.version.outputs.version }}
           target_commitish: ${{ github.sha }}
           prerelease: ${{ steps.version.outputs.prerelease }}
-          files: ${{ steps.build.outputs.assets }}
+          files: |
+            ${{ steps.build.outputs.assets }}
+            changelog.md
           fail_on_unmatched_files: true
           body: |
             ## Arena AI v${{ steps.version.outputs.version }}
 
-            **Canale:** `${{ steps.version.outputs.channel }}` · **versionCode:** `${{ steps.version.outputs.version_code }}` · **Build:** ${{ steps.build.outputs.variant }}
+            _To receive a notification when a new release is available, click on **Watch > Custom > Releases** at the top._
+
+            **Channel:** `${{ steps.version.outputs.channel }}` · **versionCode:** `${{ steps.version.outputs.version_code }}` · **Build:** ${{ steps.build.outputs.variant }}
 
             ${{ steps.changelog.outputs.section }}
 
             ---
-            Build automatica dal commit `${{ github.sha }}`.
+            Automatic build from commit `${{ github.sha }}`.
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -1,50 +1,50 @@
 ---
-name: "🐛 Bug Report / Segnalazione Bug"
+name: "🐛 Bug Report"
 about: "Report a bug or unexpected behavior in Arena AI"
 title: "[BUG] "
 labels: ["bug"]
 assignees: []
 ---
 
-## 🐛 Bug Description / Descrizione del Bug
+## 🐛 Bug Description
 A clear and concise description of what the bug is.
-*Una descrizione chiara e concisa del problema riscontrato.*
 
 ---
 
-## 🎬 Steps to Reproduce / Passi per Riprodurre il Problema
-1. Go to '...'
-2. Click on '...'
-3. Scroll down to '...'
-4. See error
+## 🎬 Steps to Reproduce
+What steps did you take to encounter the issue?
+
+1. Open the app
+2. Go to...
+3. Swipe or tap...
+4. See the error
 
 ---
 
-## 🎯 Expected Behavior / Comportamento Atteso
-A clear and concise description of what you expected to happen.
-*Cosa sarebbe dovuto succedere in una situazione normale.*
+## 🎯 Expected Behavior
+What did you expect to happen?
 
 ---
 
-## 📸 Screenshots / Schermate
-If applicable, add screenshots or screen recordings to help explain your problem.
-*Se possibile, aggiungi screenshot o registrazioni dello schermo per mostrare il problema.*
+## 📱 Device
+What device are you using? (e.g. Google Pixel 8, Samsung Galaxy S23, Xiaomi 14)
 
 ---
 
-## 📱 Device Info / Informazioni sul Dispositivo
-Please complete the following information:
-*Completa le seguenti informazioni sul dispositivo:*
-
-| Attribute | Value |
-| --- | --- |
-| **Device / Smartphone** | [e.g. Google Pixel 8, Samsung Galaxy S23] |
-| **Android Version** | [e.g. Android 14] |
-| **App Version** | 1.0.3 |
-| **Installation Source** | [e.g. GitHub APK, AI Studio, Self-compiled] |
+## 🤖 Android Version
+What Android version is installed on your device? (e.g. Android 14, Android 13, HyperOS)
 
 ---
 
-## 🛠️ Additional Context / Contesto Aggiuntivo
-Add any other context about the problem here (e.g., logs, custom settings, environment details).
-*Qualsiasi altra informazione utile per la risoluzione del problema.*
+## 📦 App Version
+Which app version shows the bug? (e.g. 1.1.9, or "self-built")
+
+---
+
+## 📸 Screenshots
+Drag and drop images or paste links here.
+
+---
+
+## 🛠️ Additional Context
+Any other helpful information (logs, custom settings, environment details, etc.).

@@ -19,7 +19,7 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
         
         // Extract message content
         val title = remoteMessage.notification?.title ?: remoteMessage.data["title"] ?: "Arena AI Update"
-        val body = remoteMessage.notification?.body ?: remoteMessage.data["body"] ?: "Vedi le ultime novità su Chatbot Arena!"
+        val body = remoteMessage.notification?.body ?: remoteMessage.data["body"] ?: "Check out the latest news on Chatbot Arena!"
         val url = remoteMessage.data["url"] ?: remoteMessage.data["link"]
 
         Log.d(TAG, "Message received: Title=$title, Body=$body, URL=$url")
@@ -37,7 +37,7 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
         private const val TAG = "ArenaFCMService"
         const val CHANNEL_ID = "arena_push_notifications"
         private const val CHANNEL_NAME = "Aggiornamenti Arena AI"
-        private const val CHANNEL_DESC = "Notifiche push per novità, nuovi modelli e classifiche di Arena.ai"
+        private const val CHANNEL_DESC = "Push notifications about new models, updates and leaderboards on Arena.ai"
         const val EXTRA_URL = "target_url"
 
         /**

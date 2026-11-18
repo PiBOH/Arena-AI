@@ -346,10 +346,30 @@ Steps:
    - debug: `Arena-AI-debug.apk` and `Arena-AI_v<version>-debug.apk`;
    - both: all four.
 5. **Changelog**: extracts the `## [<version>]` section from `CHANGELOG.md`;
-   if absent, falls back to the last 30 commit subjects.
+   if absent, falls back to the last 30 commit subjects. It also writes the
+   same section, heading included, to `changelog.md` for the release asset.
 6. **Publish**: `softprops/action-gh-release@v2` with tag, title
-   `Arena AI v<version>`, `prerelease` from the channel, the assets above and a
-   body containing channel, versionCode, build variant and notes.
+   `Arena AI v<version>`, `prerelease` from the channel, the APKs above plus
+   `changelog.md`, and a body that starts with the standard
+   "Watch > Custom > Releases" notice and then channel, versionCode, build
+   variant and notes. Every release opens with that notice, scrcpy-style:
+
+   ```markdown
+   ## Arena AI v1.1.9
+
+   _To receive a notification when a new release is available, click on **Watch > Custom > Releases** at the top._
+
+   **Channel:** `stable` · **versionCode:** `14` · **Build:** signed release
+
+   <the `## [1.1.9]` section of CHANGELOG.md, heading excluded>
+
+   ---
+   Automatic build from commit `<sha>`.
+   ```
+
+   `changelog.md` holds the same section **including** its heading, so a 1.1.9
+   release ships exactly the 1.1.9 notes. Keep the 1.1.9 wording (55% icon,
+   captcha fix) unless `version.txt` itself is bumped.
 
 Signing secrets (repository settings):
 
@@ -384,7 +404,9 @@ Two files, two audiences:
   confuse a user belongs here.
 
 Both are updated in the same commit as the change. A release that adds detail
-only to one of them is incomplete.
+only to one of them is incomplete. The release publishes the matching
+`CHANGELOG.md` section as the `changelog.md` asset: never attach the whole
+file, only the section for that version.
 
 ---
 

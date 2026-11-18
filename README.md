@@ -34,7 +34,7 @@
 
 ## ⚔️ About Arena AI
 
-**Arena AI** is a lightweight, native Android shell for [LMSYS Chatbot Arena](https://arena.ai): blind side-by-side comparisons of the world's best language models. It wraps the site in a tuned `WebView` and adds the parts a mobile browser cannot give you — native downloads with progress notifications, push notifications for new models and leaderboards, a dark Material 3 interface, and automatic update checks straight from GitHub.
+**Arena AI** is a lightweight, native Android shell for [LMSYS Chatbot Arena](https://arena.ai): blind side-by-side comparisons of the world's best language models. It wraps the site in a tuned `WebView` and adds the parts a mobile browser cannot give you — native downloads with progress notifications, a dark Material 3 interface, and automatic update checks straight from GitHub.
 
 It is built with **Kotlin** and **Jetpack Compose**, targets **Android 16 (SDK 36)**, and runs on **Android 7.0+**.
 
@@ -156,7 +156,7 @@ Gradle reads it for `versionName` and `versionCode`, and the `Auto Release` work
 
 - Push a commit to `main` whose message **starts with `v`** (for example `v1.1.9`) and the workflow builds the APK and publishes a GitHub release.
 - You can also run **Actions → Auto Release → Run workflow** manually.
-- If `CHANGELOG.md` has a section for that version, it becomes the release notes; otherwise the recent commits are used.
+- If `CHANGELOG.md` has a section for that version, it becomes the release notes and is attached to the release as `changelog.md`; otherwise the recent commits are used.
 - The changelog is optional, the release always works.
 
 For **signed** release APKs, add these repository secrets:
