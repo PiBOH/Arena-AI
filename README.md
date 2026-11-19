@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
- <a href="https://github.com/PiBOH/Arena-AI/releases/latest/download/Arena-AI.apk">
+ <a href="https://github.com/PiBOH/Arena-AI/releases/latest">
  <img src="https://img.shields.io/github/v/release/PiBOH/Arena-AI?include_prereleases&label=download&style=for-the-badge&color=4CAF50" alt="Download the latest release">
  </a>
  <a href="https://github.com/PiBOH/Arena-AI/releases/latest/download/Arena-AI.apk">
